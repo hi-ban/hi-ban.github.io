@@ -1,0 +1,1589 @@
+<!--
+	PasswdGenx - Online Password Tools.
+	Copyright (c) 2017 Hi-Ban.
+
+	This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.
+    If not, see <https://www.gnu.org/licenses/gpl-3.0.en.html>.
+-->
+
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>PasswdGenx - Online Password Tools</title>
+	<meta property="og:title" content="PasswdGenx - Online Password Tools" />
+	<meta property="og:type" content="website" />
+	<link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Oxygen+Mono" />
+	<script type="text/javascript">
+
+		var field_pwd;
+		var field_len;
+		var field_char;
+		var button;
+		var clearbutton;
+		var copybutton;
+		var result = "";
+		var length = 0;
+		var charset = 0;
+		var chars;
+
+		var w2_field_pwd;
+		var w2_field_str;
+		var w2_field_char;
+		var w2_button;
+		var w2_clearbutton;
+		var w2_copybutton;
+		var w2_result = "";
+		var w2_length = 0;
+		var w2_charset = 0;
+		var w2_strength = 0;
+		var w2_chars;
+
+		var w3_field_pwd;
+		var w3_clearbutton;
+		var w3_copybutton;
+		var w3_expandbutton;
+		var w3_length = 0;
+		var w3_chars = 0;
+
+		var charoptions = [
+			["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"],
+			["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"],		
+			["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"],
+			["!", "#", "$", "%", "&", "*", "+", "-", "=", "?", "@", "_", "\"", "'", "`", ",", ".", ":", ";", "/", "\\", "<", ">", "(", ")", "[", "]", "{", "}", "^", "|", "~"],
+			["!", "#", "$", "%", "&", "*", "+", "-", "=", "?", "@", "_"]
+		];
+
+		window.onload = function() {
+
+			/* FIRST BLOCK ************************************************************/
+
+			field_pwd = document.getElementById("result");
+			field_len = document.getElementById("length");
+			field_char = document.getElementById("charset");
+			button = document.getElementById("gen_button");
+			clearbutton = document.getElementById("clr_button");
+			copybutton = document.getElementById("copy_button");
+
+			field_pwd.addEventListener("change", updatebtn);
+			field_len.addEventListener("change", refresh);
+			field_char.addEventListener("change", refresh);
+			button.addEventListener("click", generate);
+			clearbutton.addEventListener("click", clearpwd);
+			copybutton.addEventListener("click", copytoclipboard);
+
+			length = field_len.options[field_len.selectedIndex].value;
+			charset = field_char.options[field_char.selectedIndex].value;
+
+			clearpwd();
+
+			/* SECOND BLOCK ************************************************************/
+
+			w2_field_pwd = document.getElementById("w2_result");
+			w2_field_str = document.getElementById("w2_strength");
+			w2_field_char = document.getElementById("w2_charset");
+			w2_button = document.getElementById("w2_gen_button");
+			w2_clearbutton = document.getElementById("w2_clr_button");
+			w2_copybutton = document.getElementById("w2_copy_button");
+
+			w2_field_pwd.addEventListener("change", w2_updatebtn);
+			w2_field_str.addEventListener("change", w2_refresh);
+			w2_field_char.addEventListener("change", w2_refresh);
+			w2_button.addEventListener("click", w2_generate);
+			w2_clearbutton.addEventListener("click", w2_clearpwd);
+			w2_copybutton.addEventListener("click", w2_copytoclipboard);
+
+			w2_strength = w2_field_str.options[w2_field_str.selectedIndex].value;
+			w2_charset = w2_field_char.options[w2_field_char.selectedIndex].value;
+
+			w2_clearpwd();
+
+			/* THIRD BLOCK ************************************************************/
+
+			w3_field_pwd = document.getElementById("w3_result");
+			w3_clearbutton = document.getElementById("w3_clr_button");
+			w3_copybutton = document.getElementById("w3_copy_button");
+			w3_expandbutton = document.getElementById("w3_expand_button");
+
+			w3_field_pwd.addEventListener("input", w3_calcsecurity);
+			w3_field_pwd.addEventListener("input", w3_updatebtn);
+			w3_clearbutton.addEventListener("click", w3_clearpwd);
+			w3_copybutton.addEventListener("click", w3_copytoclipboard);
+			w3_expandbutton.addEventListener("click", w3_toggleexpand);
+
+			w3_clearpwd();
+
+		};
+
+		/* COMMON FUNCTIONS ***********************************************************/
+
+		function calccracktime(entropy){
+			var tps = 24000000000; /*tries per second (MD5)*/
+			var cracktime = (Math.pow(2, entropy) / tps);
+			var units = "";
+
+			if (cracktime/2 < 1){
+				return "Less than 1 second";
+			} else if (cracktime/2 < 60){
+				if (Math.round(cracktime)/2 == 1){units = "second";}
+				else {units = "seconds";}
+				return Math.round(cracktime)/2 + " " + units;
+			} else if (cracktime/2 < 3600){
+				if (Math.round(cracktime/60)/2 == 1){units = "minute";}
+				else {units = "minutes";}
+				return Math.round(cracktime/60)/2 + " " + units;
+			} else if (cracktime/2 < 86400){
+				if (Math.round(cracktime/3600)/2 == 1){units = "hour";}
+				else {units = "hours";}
+				return Math.round(cracktime/3600)/2 + " " + units;
+			} else if (cracktime/2 < 2628000){
+				if (Math.round(cracktime/86400)/2 == 1){units = "day";}
+				else {units = "days";}
+				return Math.round(cracktime/86400)/2 + " " + units;
+			} else if (cracktime/2 < 31536000){
+				if (Math.round(cracktime/2628000)/2 == 1){units = "month";}
+				else {units = "months";}
+				return Math.round(cracktime/2628000)/2 + " " + units;
+			} else if (cracktime/2 < 315360000000){
+				if (Math.round(cracktime/31536000)/2 == 1){units = "year";}
+				else {units = "years";}
+				return Math.round(cracktime/31536000)/2 + " " + units;
+			} else {
+				return "10000+ years";
+			}
+		}
+
+		/* FUNCTIONS FOR FIRST BLOCK ***************************************************/
+
+		function refresh(){
+			length = field_len.options[field_len.selectedIndex].value;
+			charset = field_char.options[field_char.selectedIndex].value;
+		}
+
+		function createcharset(){
+			if (charset == 0){
+				chars = charoptions[0];
+			} else if (charset == 1){
+				chars = charoptions[1];
+			} else if (charset == 2){
+				chars = charoptions[0].concat(charoptions[1]);
+			} else if (charset == 3){
+				chars = charoptions[1].concat(charoptions[2]);
+			} else if (charset == 4){
+				chars = charoptions[0].concat(charoptions[1].concat(charoptions[2]));
+			} else if (charset == 5){
+				chars = charoptions[0].concat(charoptions[1].concat(charoptions[2].concat(charoptions[3])));
+			} else if (charset == 6){
+				chars = charoptions[0].concat(charoptions[1].concat(charoptions[2].concat(charoptions[4])));
+			}
+		}
+
+		function createpwd(){
+			var character = 0;
+			result = "";
+			for (var i = 0; i < length; i++) {
+				character = Math.floor(Math.random() * chars.length);
+				result += chars[character];
+			}
+			field_pwd.value = result;
+		}
+
+		function pwdisgood(){
+			var isgood = false;
+			var lower = 0;
+			var upper = 0;
+			var number = 0;
+			var symbol = 0;
+			if ((charset <= 1)){
+				isgood = true;
+			} else if (charset == 2){
+				upper = 0;
+				number = 0;
+				for (var i = 0; i < length; i++) {
+					if (result[i].match(/^[A-Z]*$/)){
+						upper = 1;
+					}
+					if (result[i].match(/^[0-9]*$/)){
+						number = 1;
+					}
+				}
+				if ((upper == 1) && (number == 1)){
+					isgood = true;
+				} else {
+					isgood = false;
+				}
+			} else if (charset == 3){
+				lower = 0;
+				upper = 0;
+				for (var i = 0; i < length; i++) {
+					if (result[i].match(/^[a-z]*$/)){
+						lower = 1;
+					}
+					if (result[i].match(/^[A-Z]*$/)){
+						upper = 1;
+					}
+				}
+				if ((lower == 1) && (upper == 1)){
+					isgood = true;
+				} else {
+					isgood = false;
+				}
+			} else if (charset == 4){
+				lower = 0;
+				upper = 0;
+				number = 0;
+				for (var i = 0; i < length; i++) {
+					if (result[i].match(/^[a-z]*$/)){
+						lower = 1;
+					}
+					if (result[i].match(/^[A-Z]*$/)){
+						upper = 1;
+					}
+					if (result[i].match(/^[0-9]*$/)){
+						number = 1;
+					}
+				}
+				if ((lower == 1) && (upper == 1) && (number == 1)){
+					isgood = true;
+				} else {
+					isgood = false;
+				}
+			} else if (charset >= 5){
+				lower = 0;
+				upper = 0;
+				number = 0;
+				symbol = 0;
+				for (var i = 0; i < length; i++) {
+					if (result[i].match(/^[a-z]*$/)){
+						lower = 1;
+					}
+					if (result[i].match(/^[A-Z]*$/)){
+						upper = 1;
+					}
+					if (result[i].match(/^[0-9]*$/)){
+						number = 1;
+					}
+					if (result[i].match(/^[_\W]*$/)){
+						symbol = 1;
+					}
+				}
+				if ((lower == 1) && (upper == 1) && (number == 1) && (symbol == 1)){
+					isgood = true;
+				} else {
+					isgood = false;
+				}
+			}
+			return isgood;
+		}
+
+		function copytoclipboard(){
+			document.querySelector('#result').select();
+			document.execCommand('copy');
+			if (document.getElementById("msg").className.match(/(?:^|\s)anim1(?!\S)/)){
+				document.getElementById("msg").className = "anim2";
+			} else {
+				document.getElementById("msg").className = "anim1";
+			}
+		}
+
+		function generate(){
+			createcharset();
+			createpwd();
+			while (pwdisgood() == false){
+				createpwd();
+			}
+			updatebtn();
+			calcentropy();
+		}
+
+		function clearpwd(){
+			field_pwd.value = "";
+			document.getElementById("msglen").innerHTML = "Length: N/A";
+			document.getElementById("entropy").innerHTML = "";
+			updatebtn();
+		}
+
+		function updatebtn(){
+			if (field_pwd.value == ""){
+				clearbutton.setAttribute('disabled', 'disabled');
+				copybutton.setAttribute('disabled', 'disabled');
+			} else {
+				clearbutton.removeAttribute("disabled");
+				copybutton.removeAttribute("disabled");
+			}
+		}
+
+		function calcentropy(){
+			var ent = 0;
+			var entcolor = "";
+			if (field_pwd.value != ""){
+				/* Entropy = log2(total_charset ^ passwd_length ) */
+				ent = Math.round(Math.log2(Math.pow(chars.length, length)));
+			}
+			document.getElementById("entropy").innerHTML = "<b>" + field_pwd.value.length + "-digit / " + ent + "-bit</b>";
+			if(ent < 40){
+				entcolor = "#DC0000";
+			} else if(ent < 64){
+				entcolor = "#FF9100";
+			} else if(ent < 80){
+				entcolor = "#F0F000";
+			} else if(ent < 96){
+				entcolor = "#00DC00";
+			} else if(ent < 128){
+				entcolor = "#00B460";
+			} else if(ent < 160){
+				entcolor = "#00C8C8";
+			} else if(ent < 192){
+				entcolor = "#00A0C8";
+			} else if(ent < 224){
+				entcolor = "#003CC8";
+			} else if(ent < 256){
+				entcolor = "#A000C8";
+			} else {
+				entcolor = "#B40096";
+			}
+			document.getElementById("entropy").style.color = entcolor;
+			document.getElementById("msglen").innerHTML = "Length: " + length + "-digit";
+			document.getElementById("entropy").innerHTML = "Entropy: " + ent + "-bit";
+		}
+
+		/* FUNCTIONS FOR SECOND BLOCK **************************************************/
+
+		function w2_refresh(){
+			w2_strength = w2_field_str.options[w2_field_str.selectedIndex].value;
+			w2_charset = w2_field_char.options[w2_field_char.selectedIndex].value;
+		}
+
+		function w2_createcharset(){
+			if (w2_charset == 0){
+				w2_chars = charoptions[0];
+			} else if (w2_charset == 1){
+				w2_chars = charoptions[1];
+			} else if (w2_charset == 2){
+				w2_chars = charoptions[0].concat(charoptions[1]);
+			} else if (w2_charset == 3){
+				w2_chars = charoptions[1].concat(charoptions[2]);
+			} else if (w2_charset == 4){
+				w2_chars = charoptions[0].concat(charoptions[1].concat(charoptions[2]));
+			} else if (w2_charset == 5){
+				w2_chars = charoptions[0].concat(charoptions[1].concat(charoptions[2].concat(charoptions[3])));
+			} else if (w2_charset == 6){
+				w2_chars = charoptions[0].concat(charoptions[1].concat(charoptions[2].concat(charoptions[4])));
+			}
+		}
+
+		function w2_calclength(){
+			w2_length = Math.ceil(w2_strength / Math.log2(w2_chars.length));
+		}
+
+		function w2_createpwd(){
+			var character = 0;
+			w2_result = "";
+			for (var i = 0; i < w2_length; i++) {
+				character = Math.floor(Math.random() * w2_chars.length);
+				w2_result += w2_chars[character];
+			}
+			w2_field_pwd.value = w2_result;
+		}
+
+		function w2_pwdisgood(){
+			var isgood = false;
+			var lower = 0;
+			var upper = 0;
+			var number = 0;
+			var symbol = 0;
+			if ((w2_charset <= 1)){
+				isgood = true;
+			} else if (w2_charset == 2){
+				upper = 0;
+				number = 0;
+				for (var i = 0; i < w2_length; i++) {
+					if (w2_result[i].match(/^[A-Z]*$/)){
+						upper = 1;
+					}
+					if (w2_result[i].match(/^[0-9]*$/)){
+						number = 1;
+					}
+				}
+				if ((upper == 1) && (number == 1)){
+					isgood = true;
+				} else {
+					isgood = false;
+				}
+			} else if (w2_charset == 3){
+				lower = 0;
+				upper = 0;
+				for (var i = 0; i < w2_length; i++) {
+					if (w2_result[i].match(/^[a-z]*$/)){
+						lower = 1;
+					}
+					if (w2_result[i].match(/^[A-Z]*$/)){
+						upper = 1;
+					}
+				}
+				if ((lower == 1) && (upper == 1)){
+					isgood = true;
+				} else {
+					isgood = false;
+				}
+			} else if (w2_charset == 4){
+				lower = 0;
+				upper = 0;
+				number = 0;
+				for (var i = 0; i < w2_length; i++) {
+					if (w2_result[i].match(/^[a-z]*$/)){
+						lower = 1;
+					}
+					if (w2_result[i].match(/^[A-Z]*$/)){
+						upper = 1;
+					}
+					if (w2_result[i].match(/^[0-9]*$/)){
+						number = 1;
+					}
+				}
+				if ((lower == 1) && (upper == 1) && (number == 1)){
+					isgood = true;
+				} else {
+					isgood = false;
+				}
+			} else if (w2_charset >= 5){
+				lower = 0;
+				upper = 0;
+				number = 0;
+				symbol = 0;
+				for (var i = 0; i < w2_length; i++) {
+					if (w2_result[i].match(/^[a-z]*$/)){
+						lower = 1;
+					}
+					if (w2_result[i].match(/^[A-Z]*$/)){
+						upper = 1;
+					}
+					if (w2_result[i].match(/^[0-9]*$/)){
+						number = 1;
+					}
+					if (w2_result[i].match(/^[_\W]*$/)){
+						symbol = 1;
+					}
+				}
+				if ((lower == 1) && (upper == 1) && (number == 1) && (symbol == 1)){
+					isgood = true;
+				} else {
+					isgood = false;
+				}
+			}
+			return isgood;
+		}
+
+		function w2_copytoclipboard(){
+			document.querySelector('#w2_result').select();
+			document.execCommand('copy');
+			if (document.getElementById("w2_msg").className.match(/(?:^|\s)anim1(?!\S)/)){
+				document.getElementById("w2_msg").className = "anim2";
+			} else {
+				document.getElementById("w2_msg").className = "anim1";
+			}
+		}
+
+		function w2_generate(){
+			w2_createcharset();
+			w2_calclength();
+			w2_createpwd();
+			while (w2_pwdisgood() == false){
+				w2_createpwd();
+			}
+			w2_updatebtn();
+			w2_calcentropy();
+		}
+
+		function w2_clearpwd(){
+			w2_field_pwd.value = "";
+			document.getElementById("w2_msglen").innerHTML = "Length: N/A";
+			document.getElementById("w2_entropy").innerHTML = "";
+			w2_updatebtn();
+		}
+
+		function w2_updatebtn(){
+			if (w2_field_pwd.value == ""){
+				w2_clearbutton.setAttribute('disabled', 'disabled');
+				w2_copybutton.setAttribute('disabled', 'disabled');
+			} else {
+				w2_clearbutton.removeAttribute("disabled");
+				w2_copybutton.removeAttribute("disabled");
+			}
+		}
+
+		function w2_calcentropy(){
+			var ent = 0;
+			var entcolor = "";
+			if (w2_field_pwd.value != ""){
+				/* Entropy = log2(total_charset ^ passwd_length ) */
+				ent = Math.round(Math.log2(Math.pow(w2_chars.length, w2_length)));
+			}
+			
+			if(ent < 40){
+				entcolor = "#DC0000";
+			} else if(ent < 64){
+				entcolor = "#FF9100";
+			} else if(ent < 80){
+				entcolor = "#F0F000";
+			} else if(ent < 96){
+				entcolor = "#00DC00";
+			} else if(ent < 128){
+				entcolor = "#00B460";
+			} else if(ent < 160){
+				entcolor = "#00C8C8";
+			} else if(ent < 192){
+				entcolor = "#00A0C8";
+			} else if(ent < 224){
+				entcolor = "#003CC8";
+			} else if(ent < 256){
+				entcolor = "#A000C8";
+			} else {
+				entcolor = "#B40096";
+			}
+			document.getElementById("w2_entropy").style.color = entcolor;
+			document.getElementById("w2_msglen").innerHTML = "Length: " + w2_length + "-digit";
+			document.getElementById("w2_entropy").innerHTML = "Entropy: " + ent + "-bit";
+		}
+
+		/* FUNCTIONS FOR THIRD BLOCK ***************************************************/
+
+		function w3_calccharset(){
+			var lower = 0;
+			var upper = 0;
+			var number = 0;
+			var symbol = 0;
+			var charsetcount = [0, 0, 0, 0];
+			var result = w3_field_pwd.value;
+			if (w3_field_pwd.value != ""){
+				for (var i = 0; i < w3_length; i++) {
+					if (result[i].match(/^[a-z]*$/)){
+						lower = 1;
+					}
+					if (result[i].match(/^[A-Z]*$/)){
+						upper = 1;
+					}
+					if (result[i].match(/^[0-9]*$/)){
+						number = 1;
+					}
+					if (result[i].match(/^[_\W]*$/)){
+						symbol = 1;
+					}
+				}
+				if ((lower == 0) && (upper == 0) && (number == 0) && (symbol == 0)){
+					w3_chars = 0;
+					/*N/A*/
+				} else if ((lower == 0) && (upper == 0) && (number == 1) && (symbol == 0)){
+					w3_chars = 10;
+					/*Numerals*/
+				} else if (((lower == 1 && upper == 0) || (lower == 0 && upper == 1)) && (number == 0) && (symbol == 0)){
+					w3_chars = 26;
+					/*CI_Alphabet*/
+				} else if (((lower == 1 && upper == 0) || (lower == 0 && upper == 1)) && (number == 1) && (symbol == 0)){
+					w3_chars = 36;
+					/*CI_Alphanumeric*/
+				} else if ((lower == 1) && (upper == 1) && (number == 0) && (symbol == 0)){
+					w3_chars = 52;
+					/*CS_Alphabet*/
+				} else if ((lower == 1) && (upper == 1) && (number == 1) && (symbol == 0)){
+					w3_chars = 62;
+					/*CS_Alphanumeric*/
+				} else if ((lower == 1) && (upper == 1) && (number == 1) && (symbol == 1)){
+					w3_chars = 94;
+					/*ASCII_Printable*/
+				} else if ((lower == 0) && (upper == 0) && (number == 0) && (symbol == 1)){
+					w3_chars = 32;
+					/*Special_Chars*/
+				} else if ((lower == 0) && (upper == 0) && (number == 1) && (symbol == 1)){
+					w3_chars = 42;
+					/*Numerals_+_Special_Chars*/
+				} else if (((lower == 1 && upper == 0) || (lower == 0 && upper == 1)) && (number == 0) && (symbol == 1)){
+					w3_chars = 58;
+					/*CI_Alphabet_+_Special_Chars*/
+				} else if (((lower == 1 && upper == 0) || (lower == 0 && upper == 1)) && (number == 1) && (symbol == 1)){
+					w3_chars = 68;
+					/*CI_Alphanumeric_+_Special_Chars*/
+				} else if ((lower == 1) && (upper == 1) && (number == 0) && (symbol == 1)){
+					w3_chars = 84;
+					/*CS_Alphabet_+_Special_Chars*/
+				}
+			}
+			charsetcount[0] = lower;
+			charsetcount[1] = upper;
+			charsetcount[2] = number;
+			charsetcount[3] = symbol;
+			return charsetcount;
+		}
+
+		function w3_calcentropy(){
+			var ent = 0;
+			var security = "N/A";
+			var entcolor = "";
+			w3_length = w3_field_pwd.value.length;
+			w3_calccharset();
+			if (w3_field_pwd.value != ""){
+				/* Entropy = log2(total_charset ^ passwd_length ) */
+				ent = Math.round(Math.log2(Math.pow(w3_chars, w3_length)));
+			}
+			document.getElementById("w3_entropy").innerHTML = "<b>" + w3_length + "-digit / " + ent + "-bit</b>";
+			if(ent < 40){
+				entcolor = "#DC0000";
+				security = "VERY LOW";
+			} else if(ent < 64){
+				entcolor = "#FF9100";
+				security = "LOW";
+			} else if(ent < 80){
+				entcolor = "#F0F000";
+				security = "AVERAGE";
+			} else if(ent < 96){
+				entcolor = "#00DC00";
+				security = "HIGH";
+			} else if(ent < 128){
+				entcolor = "#00B460";
+				security = "VERY HIGH";
+			} else if(ent < 160){
+				entcolor = "#00C8C8";
+				security = "EXTRA HIGH";
+			} else if(ent < 192){
+				entcolor = "#00A0C8";
+				security = "SUPER HIGH";
+			} else if(ent < 224){
+				entcolor = "#003CC8";
+				security = "HYPER HIGH";
+			} else if(ent < 256){
+				entcolor = "#A000C8";
+				security = "ULTRA HIGH";
+			} else {
+				entcolor = "#B40096";
+				security = "LUDICROUSLY HIGH";
+			}
+			document.getElementById("w3_entropy").style.color = entcolor;
+			document.getElementById("w3_security").style.color = entcolor;
+			document.getElementById("w3_security").innerHTML = "Security: "+ security;
+		}
+
+		function w3_calcsecurity(){
+			var ent = 0;
+			var security = "N/A";
+			var entcolor = "";
+			var result = w3_field_pwd.value;
+			w3_length = w3_field_pwd.value.length;
+			var charsetcount = w3_calccharset();
+			if (w3_field_pwd.value != ""){
+				var penalties = [0,0,0,0,0,0];
+				var penaltydesc = [
+					"WARNING: Password contains repeated characters!",
+					"WARNING: Password contains consecutive repeated characters!",
+					"WARNING: Password contains character sequences!",
+					"WARNING: Password contains keyboard patterns!",
+					"WARNING: Password contains numerical year dates!",
+					"WARNING: Password contains repeated patterns!"
+				];
+				
+				/*character repetitions (a...a...a) lower the score. Consecutive repetitions (aaaaaa...) lower the score more*/
+				var reps = [0];
+				var coreps = [0];
+				for (var i = 0; i < (w3_length -1); i++) {
+					reps.push(0);
+					coreps.push(0);
+				}
+				for (var i = 0; i < (w3_length -1); i++) {
+					for (var j = i+1; j < w3_length; j++) {
+						if (result[i] == result[j]){
+							reps[j] = 1;
+							penalties[0] = 1;
+						}
+						if ((result[i] == result[j]) && (j == (i+1))){
+							coreps[j] = 1;
+							penalties[1] = 1;
+						}
+					}
+				}
+
+				/*sequences (1234, abcde, xyz...) lower the score*/
+				var seqs = [0];
+				for (var i = 0; i < (w3_length -1); i++) {
+					seqs.push(0);
+				}
+				/*Forward sequences*/
+				if ((w3_chars == 10) || (w3_chars == 52) || (w3_chars == 62) || (w3_chars == 94) || (w3_chars == 42) || (w3_chars == 84) || (w3_chars == 26) || (w3_chars == 36) || (w3_chars == 58) || (w3_chars == 68)){
+					for (var i = 0; i < (w3_length - 1); i++) {
+						for (var j = 0; j < charoptions[0].length; j++) {
+							if (result[i] == charoptions[0][j]){
+								if ((result[i+1] == charoptions[0][j+1]) && (result[i+2] == charoptions[0][j+2])){
+									seqs[i+1] = 1;
+									seqs[i+2] = 1;
+									penalties[2] = 1;
+								}
+							}
+						}
+						for (var j = 0; j < charoptions[1].length; j++) {
+							if ((result[i] == charoptions[1][j]) || (result[i] == charoptions[2][j])){
+								if (((result[i+1] == charoptions[1][j+1]) || (result[i+1] == charoptions[2][j+1])) && ((result[i+2] == charoptions[1][j+2]) || (result[i+2] == charoptions[2][j+2]))){
+									seqs[i+1] = 1;
+									seqs[i+2] = 1;
+									penalties[2] = 1;
+								}
+							}
+						}
+					}
+				}
+				/*Inverse sequences*/
+				if ((w3_chars == 10) || (w3_chars == 52) || (w3_chars == 62) || (w3_chars == 94) || (w3_chars == 42) || (w3_chars == 84) || (w3_chars == 26) || (w3_chars == 36) || (w3_chars == 58) || (w3_chars == 68)){
+					for (var i = 0; i < (w3_length - 1); i++) {
+						for (var j = (charoptions[0].length - 1); j >= 0; j--) {
+							if (result[i] == charoptions[0][j]){
+								if ((result[i+1] == charoptions[0][j-1]) && (result[i+2] == charoptions[0][j-2])){
+									seqs[i+1] = 1;
+									seqs[i+2] = 1;
+									penalties[2] = 1;
+								}
+							}
+						}
+						for (var j = (charoptions[1].length - 1); j >= 0; j--) {
+							if ((result[i] == charoptions[1][j]) || (result[i] == charoptions[2][j])){
+								if (((result[i+1] == charoptions[1][j-1]) || (result[i+1] == charoptions[2][j-1])) && ((result[i+2] == charoptions[1][j-2]) || (result[i+2] == charoptions[2][j-2]))){
+									seqs[i+1] = 1;
+									seqs[i+2] = 1;
+									penalties[2] = 1;
+								}
+							}
+						}
+					}
+				}
+
+				/*keyboard patterns (qwerty, asdfg...) lower the score*/
+				var pats = [0];
+				var patoptions = [
+					["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", " ", "A", "S", "D", "F", "G", "H", "J", "K", "L", " ", "Z", "X", "C", "V", "B", "N", "M"],
+					["q", "w", "e", "r", "t", "y", "u", "i", "o", "p", " ", "a", "s", "d", "f", "g", "h", "j", "k", "l", " ", "z", "x", "c", "v", "b", "n", "m"]
+				];
+				for (var i = 0; i < (w3_length -1); i++) {
+					pats.push(0);
+				}
+				/*Forward patterns*/
+				if ((w3_chars == 52) || (w3_chars == 62) || (w3_chars == 94) || (w3_chars == 84) || (w3_chars == 26) || (w3_chars == 36) || (w3_chars == 58) || (w3_chars == 68)){
+					for (var i = 0; i < (w3_length - 1); i++) {
+						for (var j = 0; j < patoptions[0].length; j++) {
+							if ((result[i] == patoptions[0][j]) || (result[i] == patoptions[1][j])){
+								if (((result[i+1] == patoptions[0][j+1]) || (result[i+1] == patoptions[1][j+1])) && ((result[i+2] == patoptions[0][j+2]) || (result[i+2] == patoptions[1][j+2]))){
+									pats[i+1] = 1;
+									pats[i+2] = 1;
+									penalties[3] = 1;
+								}
+							}
+						}
+					}
+				}
+				/*Inverse patterns*/
+				if ((w3_chars == 52) || (w3_chars == 62) || (w3_chars == 94) || (w3_chars == 84) || (w3_chars == 26) || (w3_chars == 36) || (w3_chars == 58) || (w3_chars == 68)){
+					for (var i = 0; i < (w3_length - 1); i++) {
+						for (var j = (patoptions[0].length - 1); j >= 0; j--) {
+							if ((result[i] == patoptions[0][j]) || (result[i] == patoptions[1][j])){
+								if (((result[i+1] == patoptions[0][j-1]) || (result[i+1] == patoptions[1][j-1])) && ((result[i+2] == patoptions[0][j-2]) || (result[i+2] == patoptions[1][j-2]))){
+									pats[i+1] = 1;
+									pats[i+2] = 1;
+									penalties[3] = 1;
+								}
+							}
+						}
+					}
+				}
+
+				/*dates (1900-2099) lower the score*/
+				var dates = [0];
+				for (var i = 0; i < (w3_length -1); i++) {
+					dates.push(0);
+				}
+				for (var i = 0; i < (w3_length -3); i++) {
+					var date1 = "";
+					if ((result[i] == 1) || (result[i] == 2)){
+						for (var j = i; j < i+4; j++) {
+							date1 += result[j];
+						}
+						if ((date1 >= 1900) && (date1 <= 2099)){
+							for (var j = i; j < i+4; j++) {
+								dates[j] = 1;
+								penalties[4] = 1;
+							}
+						}
+					}	
+				}
+
+				/*repeated patterns (jfD3...jfD3...) lower the score*/
+				var word1 = "";
+				var word2 = "";
+				var repats = [0];
+				for (var i = 0; i < (w3_length -1); i++) {
+					repats.push(0);
+				}
+				for (var i = 0; i < (w3_length -1); i++) {
+					word1 = result[i];
+					for (var j = i+1; j < (w3_length -1); j++) {
+						word1 += result[j];
+						for (var k = i+word1.length; k < w3_length-(word1.length-1); k++) {
+							word2 = result[k];
+							for (var l = k+1; l < k+word1.length; l++) {
+								word2 += result[l];
+							}
+							if (word1 == word2){
+								for (var m = l-1; m > l-1-word2.length; m--) {
+									repats[m] = 1;
+								}
+								penalties[5] = 1;
+							}
+						}
+					}
+				}
+
+				/*Calculate total penalty*/
+				var repspenalty =   0.60;
+				var corepspenalty = 0.60;
+				var seqspenalty =   0.60;
+				var patspenalty =   0.60;
+				var datespenalty =  0.50;
+				var repatspenalty = 0.50;
+				var penaltylen = 0;
+				for (var i = 0; i < w3_length; i++) {
+					var charpenalty = 1;
+					charpenalty -= ((charpenalty >= 1 ? 1 : charpenalty) * repspenalty * reps[i]);
+					charpenalty -= ((charpenalty >= 1 ? 1 : charpenalty) * corepspenalty * coreps[i]);
+					charpenalty -= ((charpenalty >= 1 ? 1 : charpenalty) * seqspenalty * seqs[i]);
+					charpenalty -= ((charpenalty >= 1 ? 1 : charpenalty) * patspenalty * pats[i]);
+					charpenalty -= ((charpenalty >= 1 ? 1 : charpenalty) * datespenalty * dates[i]);
+					charpenalty -= ((charpenalty >= 1 ? 1 : charpenalty) * repatspenalty * repats[i]);
+					penaltylen += charpenalty;
+				}
+				ent = Math.round(Math.log2(Math.pow(w3_chars, penaltylen))*10000)/10000;
+
+				/*list warnings*/
+				var goodstring = "";
+				var warningstring = "";
+				var penaltystring = "";
+				var chsetcount = 0;
+				if (w3_length < 9){
+					warningstring += "WARNING: Password is too short!<br>"
+					warningstring += "INFO: Minimum recommended password length is 14 digits.<br>"
+				} else if (w3_length < 14){
+					warningstring += "INFO: Minimum recommended password length is 14 digits.<br>"
+				} else {
+					goodstring += "INFO: Password meets minimum recommended length.<br>"
+				}
+				var chrststring = ["lowercase letters", "uppercase letters", "numbers", "symbols"];
+				for (var i = 0; i < charsetcount.length; i++) {
+					if (charsetcount[i] == 0){
+						warningstring += "INFO: Password does not contain " + chrststring[i] + ".<br>"
+					} else {
+						chsetcount += 1;
+					}
+				}
+				if (chsetcount == 4){
+					goodstring += "INFO: Password uses a strong character set.<br>"
+				}
+				if (chsetcount <= 2){
+					warningstring += "WARNING: Character set is too small!<br>"
+				}
+				document.getElementById("w3_goodnews").innerHTML = goodstring;
+				document.getElementById("w3_suggestions").innerHTML = warningstring;
+				for (var i = 0; i < penalties.length; i++) {
+					if (penalties[i] == 1){
+						penaltystring += penaltydesc[i] + "<br>";
+					}
+				}
+				document.getElementById("w3_penalties").innerHTML = penaltystring;
+			}
+
+			if(Math.round(ent) < 40){
+				entcolor = "#DC0000";
+				security = "VERY LOW";
+			} else if(Math.round(ent) < 64){
+				entcolor = "#FF9100";
+				security = "LOW";
+			} else if(Math.round(ent) < 80){
+				entcolor = "#F0F000";
+				security = "AVERAGE";
+			} else if(Math.round(ent) < 96){
+				entcolor = "#00DC00";
+				security = "HIGH";
+			} else if(Math.round(ent) < 128){
+				entcolor = "#00B460";
+				security = "VERY HIGH";
+			} else if(Math.round(ent) < 160){
+				entcolor = "#00C8C8";
+				security = "EXTRA HIGH";
+			} else if(Math.round(ent) < 192){
+				entcolor = "#00A0C8";
+				security = "SUPER HIGH";
+			} else if(Math.round(ent) < 224){
+				entcolor = "#003CC8";
+				security = "HYPER HIGH";
+			} else if(Math.round(ent) < 256){
+				entcolor = "#A000C8";
+				security = "ULTRA HIGH";
+			} else {
+				entcolor = "#B40096";
+				security = "LUDICROUSLY HIGH";
+			}
+			document.getElementById("w3_entropy").style.color = entcolor;
+			document.getElementById("w3_security").style.color = entcolor;
+			document.getElementById("w3_msglen").innerHTML = "Length: " + w3_length + "-digit";
+			document.getElementById("w3_entropy").innerHTML = "<b>" + "Security: "+ security + " / " + Math.round(ent) + "-bit</b>";
+			document.getElementById("w3_security").innerHTML = "Estimated crack time: "+ calccracktime(ent);
+		}
+
+		function w3_copytoclipboard(){
+			document.querySelector('#w3_result').select();
+			document.execCommand('copy');
+			if (document.getElementById("w3_msg").className.match(/(?:^|\s)anim1(?!\S)/)){
+				document.getElementById("w3_msg").className = "anim2";
+			} else {
+				document.getElementById("w3_msg").className = "anim1";
+			}
+		}
+
+		function w3_clearpwd(){
+			w3_field_pwd.value = "";
+			document.getElementById("w3_msglen").innerHTML = "Length: N/A";
+			document.getElementById("w3_entropy").innerHTML = "";
+			document.getElementById("w3_security").innerHTML = "";
+			document.getElementById("w3_penalties").innerHTML = "";
+			document.getElementById("w3_suggestions").innerHTML = "";
+			document.getElementById("w3_goodnews").innerHTML = "";
+			w3_updatebtn();
+			w3_calccharset();
+		}
+
+		function w3_updatebtn(){
+			if (w3_field_pwd.value == ""){
+				w3_clearbutton.setAttribute('disabled', 'disabled');
+				w3_copybutton.setAttribute('disabled', 'disabled');
+				document.getElementById("w3_msglen").innerHTML = "Length: N/A";
+				document.getElementById("w3_entropy").innerHTML = "";
+				document.getElementById("w3_security").innerHTML = "";
+				document.getElementById("w3_penalties").innerHTML = "";
+				document.getElementById("w3_suggestions").innerHTML = "";
+				document.getElementById("w3_goodnews").innerHTML = "";
+			} else {
+				w3_clearbutton.removeAttribute("disabled");
+				w3_copybutton.removeAttribute("disabled");
+			}
+		}
+
+		function w3_toggleexpand(){
+			if (document.getElementById("w3_expand_button").value == "0"){
+				document.getElementById("w3_expand_button").value = "1";
+				document.getElementById("w3_expand_button").innerHTML = "<span style='position:relative; top:-7px;'>&#65085;</span>";
+				document.getElementById("w3_expand_button").style.marginTop = "5px";
+				document.getElementById("w3_infoscreen").style.scrollbarBaseColor = "red";
+				document.getElementById("w3_infoscreen").style.scrollbarTrackColor = "red";
+				setTimeout(function () {document.getElementById("w3_infoscreen").style.display = "block";}, 20);
+				setTimeout(function () {
+					document.getElementById("w3_infoscreen").style.height = "100px";
+					document.getElementById("w3_goodnews").style.top = "0px";
+					document.getElementById("w3_suggestions").style.top = "0px";
+					document.getElementById("w3_penalties").style.top = "0px";
+				}, 40);
+			} else if (document.getElementById("w3_expand_button").value == "1"){
+				document.getElementById("w3_expand_button").value = "0";
+				document.getElementById("w3_expand_button").innerHTML = "<span style='position:relative; top:0px;'>&#65086;</span>";
+				document.getElementById("w3_infoscreen").style.height = "0px";
+				document.getElementById("w3_goodnews").style.top = "-100px";
+				document.getElementById("w3_suggestions").style.top = "-100px";
+				document.getElementById("w3_penalties").style.top = "-100px";
+				setTimeout(function () {
+					document.getElementById("w3_infoscreen").style.display = "none";
+					document.getElementById("w3_expand_button").style.marginTop = "0px";
+				}, 200);
+			}
+		}
+
+	</script>
+
+	<style type="text/css">
+
+		*{
+			font-family:"Oxygen Mono", monospace;	
+			font-size:12.8px;
+		}
+
+		body{
+			background-color:black;
+		}
+
+		#banner{
+			margin:auto;
+			width:800px;
+			height:128px;
+			background-color:#656AD0;
+			border-radius:5px 5px 0px 0px;
+			border-bottom: 4px solid white;
+		}
+
+		#main{
+			margin:auto;
+			padding-top:30px;
+			padding-bottom:30px;
+			width:800px;
+			background-color:darkgrey;
+			border-radius:0px 0px 5px 5px;
+		}
+
+		#container{
+			margin:auto;
+			margin-bottom:0px;
+			background-color:lightgrey;
+			width:640px;
+			border-radius:0px;
+			position:relative;
+			border-bottom: 4px solid white;
+		}
+
+		#w2_container{
+			margin:auto;
+			margin-bottom:25px;
+			background-color:lightgrey;
+			width:640px;
+			border-radius:0px 0px 5px 5px;
+			position:relative;
+		}
+
+		#w3_container{
+			margin:auto;
+			background-color:lightgrey;
+			width:640px;
+			border-radius:0px 0px 0px 0px;
+			position:relative;
+			border-bottom: 4px solid white;
+		}
+		#w3_warnings{
+			margin:auto;
+			margin-bottom:25px;
+			background-color:lightgrey;
+			width:630px;
+			border-radius:0px 0px 5px 5px;
+			position:relative;
+			padding:5px;
+			padding-bottom:2px;
+		}
+
+		.description{
+			margin:auto;
+			margin-bottom:25px;
+			padding:17px;
+			padding-left:24px;
+			padding-right:24px;
+			background-color:lightgrey;
+			width:592px;
+			border-radius:5px;
+			position:relative;
+			text-align:center;
+		}
+
+		.banner_titletext{
+			margin:auto;
+			margin-bottom:-20px;
+			width:640px;
+			text-align:center;
+			font-size:51px;
+			font-weight:normal;
+			color:white;
+			padding-top:18px;
+		}
+
+		.title, .w3_title{
+			margin:auto;
+			margin-top:15px;
+			width:640px;
+			height:48px;
+			border-radius:5px 5px 0px 0px;
+			background-color:#656AD0;
+			border-bottom: 4px solid white;
+		}
+
+		.titletext{
+			margin:auto;
+			width:620px;
+			text-align:center;
+			font-size:24px;
+			font-weight:normal;
+			color:white;
+			padding-top:10px;
+		}
+
+		#result, #w2_result, #w3_result{
+			width:608px;
+			height:21px;
+			background-color:black;
+			color:yellow;
+			border:1px solid darkgrey;
+			border-radius:3px;
+			margin:15px;
+			text-align:center;
+		}
+
+		.warning_screen{
+			width:610px;
+			height:150px;
+			background-color:black;
+			border:1px solid darkgrey;
+			border-radius:3px;
+			margin-left:10px;
+			margin-right:10px;
+			text-align:left;
+			user-select: none;
+			overflow-y:auto;
+			box-sizing: border-box;
+		}
+
+		.warning_screen::-webkit-scrollbar{
+    		width: 10px;
+		}
+		.warning_screen::-webkit-scrollbar-thumb{
+			width: 10px;
+			background-color:grey;
+			border:2px solid black;
+			border-radius: 2px;
+		}
+
+		#w3_infoscreen{
+			height:0px;
+			transition: height 0.2s linear;
+			display:none;
+		}
+
+		#length, #charset, #gen_button, #clr_button, #copy_button, #w2_strength, #w2_charset, #w2_gen_button, #w2_clr_button, #w2_copy_button, #w3_clr_button, #w3_copy_button{
+			margin-left:1px;
+			margin-right:1px;
+			margin-bottom:17px;
+		}
+
+		#length, #w2_strength{
+			margin-left:17px;
+		}
+
+		#w3_clr_button{
+			margin-left:395px;
+		}
+
+		.labels > span:nth-child(1){
+			position:absolute;
+			width:100px;
+			font-size: 11px;
+			margin-top:-10px;
+			line-height:6px;
+			left:7px;
+			text-align:center;
+			color:grey;
+			user-select:none;
+		}
+
+		.labels > span:nth-child(2){
+			position:absolute;
+			width:100px;
+			font-size: 11px;
+			margin-top:-10px;
+			line-height:6px;
+			left:148px;
+			text-align:center;
+			color:grey;
+			user-select:none;
+		}
+
+		div > select:nth-child(1){
+			cursor:pointer;
+			height:23px;
+			width:86px;
+		}
+
+		div > select:nth-child(2){
+			cursor:pointer;
+			height:23px;
+			width:179px;
+		}
+
+		.button_green{
+			border:1px solid #10A01C;
+			border-radius:2px;
+			background:#30C03C;
+			background:linear-gradient(#30C03C, #10A01C);
+			height:23px;
+			width:84px;
+		}
+
+		.button_green:hover{
+			cursor:pointer;
+			border:1px solid #20D028;
+			border-radius:2px;
+			background:#40F048;
+			background:linear-gradient(#40F048, #20D028);
+			height:23px;
+			width:84px;
+		}
+
+		.button_red{
+			border:1px solid #D02121;
+			border-radius:2px;
+			background:#F04141;
+			background:linear-gradient(#F04141, #D02121);
+			height:23px;
+			width:56px;
+		}
+
+		.button_red:hover{
+			cursor:pointer;
+			border:1px solid #DF5E41;
+			border-radius:2px;
+			background:#FF7E61;
+			background:linear-gradient(#FF7E61, #DF5E41);
+			height:23px;
+			width:56px;
+		}
+
+		.button_default{
+			border:1px solid #7C7C8C;
+			border-radius:2px;
+			background:#9C9CAC;
+			background:linear-gradient(#9C9CAC, #7C7C8C);
+			height:23px;
+			width:160px;
+		}
+
+		.button_default:hover{
+			cursor:pointer;
+			border:1px solid #9C9CAC;
+			border-radius:2px;
+			background:#BCBCCC;
+			background:linear-gradient(#BCBCCC, #9C9CAC);
+			height:23px;
+			width:160px;
+		}
+
+		.button_expand{
+			border:1px solid #7C7C8C;
+			border-radius:2px;
+			background:#9C9CAC;
+			background:linear-gradient(#9C9CAC, #7C7C8C);
+			height:15px;
+			width:60px;
+			margin-top:0px;
+			line-height:20px;
+			overflow: hidden;
+			display: inline-block;
+			transition: margin-top 0.02s linear;
+		}
+
+		.button_expand:hover{
+			cursor:pointer;
+			border:1px solid #9C9CAC;
+			background:#BCBCCC;
+			background:linear-gradient(#BCBCCC, #9C9CAC);
+		}
+
+		button:disabled, button:disabled:hover{
+			cursor:default;
+			border:1px solid #8C8C8C;
+			border-radius:2px;
+			background:#ACACAC;
+			background:linear-gradient(#ACACAC, #8C8C8C);
+			height:23px;
+		}
+
+		#logo, #w2_logo, #w3_logo{
+			padding-top:17px;
+			padding-left:17px;
+			color:grey;
+			font-weight:bold;
+			user-select: none;
+		}
+
+		#msg, #w2_msg, #w3_msg{
+			position:absolute;
+			left:292px;
+			color:green;
+			opacity: 0.0;
+			user-select:none;
+		}
+
+		#w3_security{
+			position:absolute;
+			left:17px;
+			top:92px;
+			color:grey;
+			font-weight:bold;
+			user-select:none;
+		}
+
+		#entropy, #w2_entropy, #w3_entropy{
+			position:absolute;
+			right:17px;
+			user-select: none;
+		}
+
+		.greenfield{
+			margin:auto;
+			text-align:left;
+			color:#00DC00;
+			line-height: 15px;
+			position:relative;
+			top:-150px;
+			transition: top 0.2s linear;
+		}
+
+		.yellowfield{
+			margin:auto;
+			text-align:left;
+			color:yellow;
+			line-height: 15px;
+			position:relative;
+			top:-150px;
+			transition: top 0.2s linear;
+		}
+
+		.redfield{
+			margin:auto;
+			text-align:left;
+			color:#DC0000;
+			line-height: 15px;
+			position:relative;
+			top:-150px;
+			transition: top 0.2s linear;
+		}
+
+		#donate{
+			margin: auto;
+			width:147px;
+		}
+
+		#donatesubtitle{
+			margin:auto;
+			width:640px;
+			text-align:center;
+			margin-top:-15px;
+		}
+
+		.footer{
+			margin:auto;
+			width:800px;
+			text-align:center;
+			margin-top:15px;
+			margin-bottom:-25px;
+			font-size:10px;
+		}
+
+		.hidden{
+			display:none;
+		}
+
+		.centeralign{
+			text-align: center;
+		}
+
+		.padding5px{
+			padding-left:8px;
+			padding-right:8px;
+			padding-top:3px;
+			padding-bottom:3px;
+		}
+
+		sub, sup{
+			font-size:10px;
+		}
+
+		.anim1{
+			animation: copymsga 1s forwards;
+		}
+
+		.anim2{
+			animation: copymsgb 1s forwards;
+		}
+
+		@keyframes copymsga {
+			0%   {opacity: 1.0;}
+			20%  {opacity: 0.0;}
+			21%  {opacity: 1.0;}
+			40%  {opacity: 0.0;}
+			41%  {opacity: 1.0;}
+			60%  {opacity: 0.0;}
+			61%  {opacity: 1.0;}
+			80%  {opacity: 0.0;}
+			81%  {opacity: 1.0;}
+			100% {opacity: 0.0;}
+		}
+
+		@keyframes copymsgb {
+			0%   {opacity: 1.0;}
+			20%  {opacity: 0.0;}
+			21%  {opacity: 1.0;}
+			40%  {opacity: 0.0;}
+			41%  {opacity: 1.0;}
+			60%  {opacity: 0.0;}
+			61%  {opacity: 1.0;}
+			80%  {opacity: 0.0;}
+			81%  {opacity: 1.0;}
+			100% {opacity: 0.0;}
+		}
+
+	</style>
+
+</head>
+<body>
+
+	<div id="banner">
+		<h1 class="banner_titletext">--- PASSWDGENX ---</h1>
+		<h1 class="titletext">--- PASSWORD TOOLS ---</h1>
+	</div>
+
+	<div id="main">
+
+		<div class="title">
+			<h1 class="titletext">Password Generators</h1>
+		</div>
+		<div id="container">
+			<div id="logo">
+				<span id="msglen">Length: N/A</span>
+				<span id="msg">Copied!</span>
+				<span id="entropy" class="entropyfield"></span>
+			</div>
+			<div>
+				<input type="text" id="result" readonly> 
+			</div>
+			<div class="labels">
+				<span>length</span>
+				<span>character set</span>
+			</div>
+			<div>
+				<select id="length">
+					<option value="4">4-digit</option>
+					<option value="6">6-digit</option>
+					<option value="8">8-digit</option>
+					<option value="10">10-digit</option>
+					<option value="12">12-digit</option>
+					<option value="14">14-digit</option>
+					<option value="16" selected>16-digit</option>
+					<option value="18">18-digit</option>
+					<option value="20">20-digit</option>
+					<option value="22">22-digit</option>
+					<option value="24">24-digit</option>
+					<option value="32">32-digit</option>
+					<option value="48">48-digit</option>
+					<option value="64">64-digit</option>
+				</select>
+				<select id="charset">
+					<option value="0">[10] Numerals</option>
+					<option value="1">[26] CI Alphabet</option>
+					<option value="2">[36] CI Alphanumeric</option>
+					<option value="3">[52] CS Alphabet</option>
+					<option value="4" selected>[62] CS Alphanumeric</option>
+					<option value="5">[94] ASCII Printable</option>
+					<option value="6">[74] ASCII Printable (Simplified)</option>
+				</select>
+				<button id="gen_button" class="button_green">Generate!</button>
+				<button id="clr_button" class="button_red" disabled>Clear</button>
+				<button id="copy_button" class="button_default" disabled>Copy to Clipboard</button>
+			</div>
+		</div>
+
+		<div id="w2_container">
+			<div id="w2_logo">
+				<span id="w2_msglen">Length: N/A</span>
+				<span id="w2_msg">Copied!</span>
+				<span id="w2_entropy" class="entropyfield"></span>
+			</div>
+			<div>
+				<input type="text" id="w2_result" readonly> 
+			</div>
+			<div class="labels">
+				<span>strength</span>
+				<span>character set</span>
+			</div>
+			<div>
+				<select id="w2_strength">
+					<option value="32">32-bit</option>
+					<option value="40">40-bit</option>
+					<option value="64">64-bit</option>
+					<option value="80">80-bit</option>
+					<option value="96">96-bit</option>
+					<option value="128" selected>128-bit</option>
+					<option value="160">160-bit</option>
+					<option value="192">192-bit</option>
+					<option value="224">224-bit</option>
+					<option value="256">256-bit</option>
+				</select>
+				<select id="w2_charset">
+					<option value="0">[10] Numerals</option>
+					<option value="1">[26] CI Alphabet</option>
+					<option value="2">[36] CI Alphanumeric</option>
+					<option value="3">[52] CS Alphabet</option>
+					<option value="4" selected>[62] CS Alphanumeric</option>
+					<option value="5">[94] ASCII Printable</option>
+					<option value="6">[74] ASCII Printable (Simplified)</option>
+				</select>
+				<button id="w2_gen_button" class="button_green">Generate!</button>
+				<button id="w2_clr_button" class="button_red" disabled>Clear</button>
+				<button id="w2_copy_button" class="button_default" disabled>Copy to Clipboard</button>
+			</div>		
+		</div>
+
+		<div class="w3_title">
+			<h1 class="titletext">Password Security Checker</h1>
+		</div>
+		<div id="w3_container">
+			<div id="w3_logo">
+				<span id="w3_msglen">Length: N/A</span>
+				<span id="w3_msg">Copied!</span>
+				<span id="w3_entropy" class="entropyfield"></span>
+			</div>
+			<div>
+				<input type="text" id="w3_result" placeholder="Type or paste a password" maxlength="78"> 
+			</div>
+			<span id="w3_security">Security: N/A</span>
+			<button id="w3_clr_button" class="button_red" disabled>Clear</button>
+			<button id="w3_copy_button" class="button_default" disabled>Copy to Clipboard</button>		
+		</div>
+		<div id="w3_warnings">
+			<div id="w3_infoscreen" class="warning_screen">
+				<div class="padding5px">
+					<div id="w3_goodnews" class="greenfield"></div>
+					<div id="w3_suggestions" class="yellowfield"></div>
+					<div id="w3_penalties" class="redfield"></div>
+				</div>
+			</div>
+			<div class="centeralign">
+				<button id="w3_expand_button" class="button_expand" value="0"><span>&#65086;</span></button>
+			</div>
+		</div>
+
+		<div class="description">
+			<b>DISCLAIMER:</b><br>
+			This website is intended for educational use. Due to limitations of the technology involved, the results may not always be accurate.
+			Your passwords will not be collected, stored or sent over the internet.
+		</div>
+
+		<div id="donate">
+			<form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_top">
+			<input type="hidden" name="cmd" value="_s-xclick">
+			<input type="hidden" name="hosted_button_id" value="TLXKP55JFLYB6">
+			<input type="image" src="https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif" border="0" name="submit" alt="PayPal - The safer, easier way to pay online!">
+			<img alt="" border="0" src="https://www.paypalobjects.com/es_ES/i/scr/pixel.gif" width="1" height="1">
+			</form>
+		</div>
+
+		<div id="donatesubtitle"><i><b>Found this website useful? Buy me a beer!</b></i></div>
+
+		<div class="footer">PasswdGenx - Online Password Tools. Copyright (c) 2017 Hi-Ban. Website code and design by Hi-Ban. Code available under the GPL.</div>
+
+	</div>
+
+</body>
+</html>

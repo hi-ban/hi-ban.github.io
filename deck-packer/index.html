@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+    <head>
+
+        <meta charset="utf-8">
+
+        <title>CardShark Deck Packer</title>
+        <meta name="description" content="CardShark Deck Packer makes it easier for you to make your custom decks." />
+
+        <script src="./res/jszip.min.js" type="text/javascript"></script>
+        
+        <script>
+            var card_width;
+            var card_height;
+            var inset_w;
+            var inset_h;
+            var inset_x;
+            var inset_y;
+            var canvas = document.createElement('canvas'), context = canvas.getContext('2d');
+            var oc1 = document.createElement('canvas'), octx1 = oc1.getContext('2d');
+            var oc2 = document.createElement('canvas'), octx2 = oc2.getContext('2d');
+            var oc3 = document.createElement('canvas'), octx3 = oc3.getContext("2d"); 
+            var resolution;
+            var smoothfactor;
+            var deckname;
+            var author;
+            var zipfile;
+            var missingcards;
+
+            window.onload = function() {
+            	document.getElementById("gen1").addEventListener("mousedown", init);
+                document.getElementById("filebutton").addEventListener("click", selectFile);
+                document.getElementById("options").addEventListener("click", toggleOptions);
+                document.getElementById("help").addEventListener("click", toggleHelp);
+                document.getElementById("zipfile").addEventListener("change", function() { //disables "generate" button if no zip file is selected, and tells user the name of selected file (if any).
+                    if (this.value == "") {
+                        document.getElementById("gen1").setAttribute('disabled', 'disabled');
+                        document.getElementById("fileinfo").value = "No file selected";
+                    } else {
+                        document.getElementById("gen1").removeAttribute("disabled");
+                        document.getElementById("fileinfo").value = document.getElementById("zipfile").value.replace("C:\\fakepath\\", "");
+                    }
+                });
+                document.getElementById("download").addEventListener("click", function() { //sets the deck name as filename and starts the download.
+                    deckname = document.getElementById("deckname").value || "Unknown Deck";
+                    downloadCanvas(deckname+".png");
+                }, false);
+                document.getElementById("result").addEventListener("click", toggleZoom);
+                if (isIE()){
+                    alert("Sorry, this website won't work properly on Microsoft browsers. Use Chrome or Firefox instead.");
+                }
+            };
+
+            function init() {
+                resolution = document.getElementById("decksize").options[document.getElementById("decksize").selectedIndex].value;
+                smoothfactor = document.getElementById("smoothfactor").options[document.getElementById("smoothfactor").selectedIndex].value;
+                deckname = document.getElementById("deckname").value || "Unknown Deck";
+                author = document.getElementById("author").value || "Unknown";
+                zipfile = document.getElementById("zipfile").files[0] || false;
+	            canvas.width = 1024*resolution;
+	            canvas.height = 1024*resolution;
+	            card_width = 110*resolution;
+	            card_height = 146*resolution;
+	            inset_w = card_width-10; // card_width*344/360; // 210
+            	inset_h = card_height-10; // card_height*480/496; // 283
+            	inset_x = 5; //(card_width-inset_w)/2; // 5  // hardcoded to 5 pixels regardless of deck resolution???
+            	inset_y = 5; //(card_height-inset_h)/2; // 5
+                document.getElementById("download").setAttribute('disabled', 'disabled');
+                document.getElementById("generating").style.display = "inline";
+                document.getElementById("result").src = "./res/empty.png";
+                generate();
+                var loopcounter = 0;
+                function checkLoop(){
+                    if (loopcounter >= 100) {
+                        alert("Uh oh!\nSomething went wrong with your deck. Looks like your ZIP file may be missing the following image files:"+missingcards);
+                        displayResult();
+                        document.getElementById("download").removeAttribute("disabled");
+                        document.getElementById("generating").style.display = "none";
+                        return;
+                    }
+                    var percent = getProgress();
+                    document.getElementById("progress").style.width = percent+"%";
+                    if (percent < 100) {
+                        loopcounter += 1;
+                        window.setTimeout(checkLoop, 100);
+                    } else {
+                        setTimeout(function(){
+                            displayResult();
+                        }, 250);
+                        setTimeout(function(){
+                            document.getElementById("download").removeAttribute("disabled");
+                            document.getElementById("generating").style.display = "none";
+                        }, 750); 
+                    }
+                }
+                checkLoop();
+	        }
+
+            //Draws image data on canvas just like drawImage, but provides uniform and good quality AA on any downscale ratio.
+            //Downscales the image using multiple small downscaling steps, to always achieve good quality antialiasing.
+            //Usage: drawImageResizeProg(image, dest, posX, posY, cwidth, cheight);
+            //       image           - source image/canvas to draw
+            //       dest            - destination canvas object to draw the source image into
+            //       posX, posY      - destination coordinates for painting the image
+            //       cwidth, cheight - final size of the image
+            function drawImageResizeProg(image, dest, posX, posY, cwidth, cheight) {
+                oc1.width = image.width;
+                oc1.height = image.height;
+                oc2.width = image.width;
+                oc2.height = image.height;
+                octx1.clearRect(0,0,oc1.width,oc1.height);
+                octx1.drawImage(image, 0, 0, image.width, image.height);
+                
+                var firstpass = 0.9375;
+                var finalratio = smoothfactor; // The final downscaling step will have this ratio. Depending on it, the resulting image will be sharp or smooth. 0.625 is good value.
+                var finalsize;
+                var targetsize;
+                var tempsize;
+                var stepsize;
+                var tempratio;
+
+                function downscaleStep(dwidth, dheight) {
+                    oc2.width = oc1.width*dwidth;
+                    oc2.height = oc1.height*dheight;
+                    octx2.clearRect(0,0,oc2.width,oc2.height);
+                    octx2.drawImage(oc1, 0, 0, oc2.width, oc2.height);
+                    oc1.width = oc2.width;
+                    oc1.height = oc2.height;
+                    octx1.clearRect(0,0,oc1.width,oc1.height);
+                    octx1.drawImage(oc2, 0, 0, oc1.width, oc1.height);
+                }
+
+                // Horizontal downscale passes.
+                tempratio = finalratio;
+                finalsize = Math.round(cwidth/finalratio);
+                if (oc1.width*firstpass > finalsize) {
+                    downscaleStep(firstpass, 1);
+                }
+                while (oc1.width > finalsize) {
+                    targetsize = oc1.width;
+                    tempsize = finalsize;
+                    stepsize = cwidth;
+                    while (Math.round(tempsize)+stepsize < targetsize) {
+                        tempsize = Math.round(tempsize)+stepsize;
+                    }
+                    tempratio = tempsize/targetsize;
+                    if (tempratio <= 0.76) {
+                        tempratio = 0.76;
+                    }                   
+                    downscaleStep(tempratio, 1);
+                }
+
+                // Vertical downscale passes.
+                tempratio = finalratio;
+                finalsize = Math.round(cheight/finalratio);
+                if (oc1.height*firstpass > finalsize) {
+                    downscaleStep(1, firstpass);
+                }
+                while (oc1.height > finalsize) {
+                    targetsize = oc1.height;
+                    tempsize = finalsize;
+                    stepsize = cheight;
+                    while (Math.round(tempsize)+stepsize < targetsize) {
+                        tempsize = Math.round(tempsize)+stepsize;
+                    }
+                    tempratio = tempsize/targetsize;
+                    if (tempratio <= 0.76) {
+                        tempratio = 0.76;
+                    }               
+                    downscaleStep(1, tempratio);  
+                }
+
+                // Final downscale step and image drawing.
+                dest.getContext("2d").drawImage(oc1, posX, posY, cwidth, cheight );             
+            }
+
+            function getSrcFromZip(zipfile, filename, destimg) { //Uses JSZIP. Loads image file from ZIP and uses it as img.src. Images from inside a ZIP are not "Tainted".
+                JSZip.loadAsync(zipfile).then(function(zip) {
+                    zip.file(filename).async("blob").then(function(blob) {
+                        destimg.src = URL.createObjectURL(blob);
+                    });
+                });
+            }
+
+            function displayResult() {
+                canvas.toBlob(function(blob) {
+                    document.getElementById("result").src = URL.createObjectURL(blob);
+                });
+            }
+
+            function downloadCanvas(filename) {
+                var link = document.createElement("a");
+                link.href = document.getElementById("result").src;
+                link.download = filename;
+                link.id = "deleteme";
+                document.body.appendChild(link);
+                link.click();
+                document.getElementById("deleteme").remove(); 
+            }
+
+            function generateHelper(imageFrame) {
+                imageFrame = imageFrame || false;
+                var prefix = "deck";
+                context.clearRect(0,0,canvas.width,canvas.height); // clear canvas before painting, just in case there was something already there.
+                var image = new Array(13*4+2); // 52 cards + card back + joker
+                
+                var pad = card_width/55; //2px for a 1024x1024 deck, 4px for a 2048x2048 deck, 8px for a 4096x4096 deck.
+                var x = pad;
+                var y = pad;
+                var suitName = ["H","D","S","C"];
+                var rankName = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
+                var index;    
+                
+                for ( index=0; index<54; index++ ) {
+                    var name;
+                    if ( index<52 ) {
+                        var rank = index%13;
+                        name = rankName[rank]+suitName[(index-rank)/13];
+                    } else if ( index==52 ) {
+                        name = "back";
+                    } else {
+                        name = "joker";
+                    }
+                    image[index] = new Image();
+                    image[index].id = x+"_"+y;
+
+                    if (zipfile) {
+                        getSrcFromZip(zipfile, name+".png", image[index]); // get images from zip file
+                    } else {
+                        image[index].src = "./"+prefix+"/"+name+".png"; // get images from folder
+                    }
+                    
+                    image[index].onload = function() {
+                        var xy = this.id.split("_");
+                        var x0 = parseInt(xy[0]);
+                        var y0 = parseInt(xy[1]);
+                        if (imageFrame) {
+                            oc3.width = imageFrame.width;
+                            oc3.height = imageFrame.height;
+                            octx3.clearRect(0,0,oc3.width,oc3.height); // clear canvas before painting, just in case there was something already there.
+                            octx3.drawImage( imageFrame, 0, 0, imageFrame.width, imageFrame.height );
+                            drawImageResizeProg( this, oc3, imageFrame.width/22, imageFrame.height/29.2, imageFrame.width-(imageFrame.width/11), imageFrame.height-(imageFrame.height/14.6));
+                            drawImageResizeProg( oc3, canvas, x0, y0, card_width, card_height);
+                        } else {
+                            drawImageResizeProg(this, canvas, x0, y0, card_width, card_height);
+                        }
+                    }
+                    
+                    if( (index%9)==8 ) { // wrap to next row
+                        x = pad;
+                        y += card_height+pad;
+                    } else {
+                        x += card_width+pad;
+                    }
+                } // next index
+            } // function generate
+
+            function getProgress() { // checks if there is anything drawn on a single pixel on the center of each card. Returns the percentage of the cards which has been drawn (0-100).
+                var pad = card_width/55;
+                var x = pad+(card_width/2);
+                var y = pad+(card_height/2);
+                var index;
+                var missing = 0;
+
+                missingcards = "";
+                var suitName = ["H","D","S","C"];
+                var rankName = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
+                
+                
+                for ( index=0; index<54; index++ ) {
+                    var name;
+                    if ( index<52 ) {
+                        var rank = index%13;
+                        name = rankName[rank]+suitName[(index-rank)/13];
+                    } else if ( index==52 ) {
+                        name = "back";
+                    } else {
+                        name = "joker";
+                    }
+
+                    var pixel = context.getImageData(x,y,1,1);
+                    if(pixel.data[3] == 0) { // a card is considered missing if its center pixel is completely transparent.
+                        missing += 1;
+                        missingcards += "\n- "+name+".png";
+                    }
+                    
+                    if( (index%9)==8 ) { // wrap to next row
+                        x = pad+(card_width/2);
+                        y += card_height+pad;
+                    } else {
+                        x += card_width+pad;
+                    }
+                } // next index
+                return Math.round(((54-missing)*100)/54);
+            }
+
+            function writeDeckInfo() {
+            	context.font= 20*resolution+"px Serif";
+            	context.textAlign="center";
+                context.fillStyle = "#000000";
+            	context.fillText("Deck Name: "+deckname,512*resolution,950*resolution);
+            	context.fillText("Author: "+author,512*resolution,974*resolution);
+            	context.font= 12*resolution+"px Serif";
+            	context.fillText("Generated using the Deck-Packer tool. More info on http://www.northernbytes.ca/iphone/cardshark/",512*resolution,1016*resolution);
+            }
+        
+	        function generate() {
+	        	if (document.getElementById("useframe").value == 1) {
+	        		var imageFrame = new Image();
+		            imageFrame.src = "./res/frame.png";
+		            imageFrame.onload = function() {
+		                generateHelper(imageFrame);
+		                writeDeckInfo();
+		            }
+	        	} else if (document.getElementById("useframe").value == 0) {
+			        generateHelper();
+			        writeDeckInfo();
+	        	} 
+	        }
+
+            function toggleOptions() { //show/hide the options panel
+                if (document.getElementById("optionspanel").style.marginTop == "0px") {
+                    document.getElementById("optionspanel").style.marginTop = "-65px";
+                } else {
+                    document.getElementById("optionspanel").style.marginTop = "0px";
+                }
+                if (document.getElementById("helppanel").style.marginTop == "0px") { //hide help panel if not hidden
+                    document.getElementById("helppanel").style.marginTop = "-625px";
+                }
+            }
+
+            function toggleHelp() { //show/hide the help panel
+                if (document.getElementById("helppanel").style.marginTop == "0px") {
+                    document.getElementById("helppanel").style.marginTop = "-625px";
+                } else {
+                    document.getElementById("helppanel").style.marginTop = "0px";
+                }
+                if (document.getElementById("optionspanel").style.marginTop == "0px") { //hide options panel if not hidden
+                    document.getElementById("optionspanel").style.marginTop = "-65px";
+                }
+            }
+
+            function selectFile() {
+                document.getElementById("zipfile").click();
+            }
+
+            function toggleZoom() {
+                if (document.getElementById("result").style.width != "100%") {
+                    document.getElementById("result").style.width = "100%";
+                } else {
+                    document.getElementById("result").style.width = "";
+                }
+            }
+
+            function isIE(userAgent) {
+                userAgent = userAgent || navigator.userAgent;
+                return userAgent.indexOf("MSIE ") > -1 || userAgent.indexOf("Trident/") > -1 || userAgent.indexOf("Edge/") > -1;
+            }
+
+		</script>
+
+		<style type="text/css">
+			body {
+				padding:0px;
+				margin:0px;
+                width: 100%;
+                height: 100%;
+                font-family: sans-serif;
+                font-size: 13px;
+                background: linear-gradient(0deg, #1BC12E, #0A4E13);
+                background-size: 100vw 100vh;
+                background-attachment: fixed;
+                background-repeat: no-repeat;
+			}
+            #outer {
+                width:100%;
+                min-height:60px;
+                min-width: 960px;
+                padding:0px;
+                box-sizing: border-box;
+                position:fixed;
+                top: 0px;
+                box-shadow: 0px 6px 12px rgba(0,0,0,0.6);
+            }
+            #menubar {
+                width:100%;
+                min-height:60px;
+                min-width: 600px;
+                padding:0px;
+                box-sizing: border-box;
+                background: linear-gradient(0deg, #0C5214, #169F26);
+                box-shadow: 0px 3px 6px rgba(0,0,0,0.8);
+            }
+			#container {
+				width:100%;
+                min-height:60px;
+                min-width: 960px;
+                max-width: 1530px;
+				padding:0px;
+                box-sizing: border-box;
+                display:flex;
+                flex-wrap: wrap;
+                justify-content: flex-start;
+                flex-direction: row;
+			}
+            #blockA {
+                display:flex;
+                flex:440;
+                min-width: 440px;
+                height:60px;
+            }
+            #blockB {
+                display:flex;
+                flex:960;
+                min-width: 960px;
+                height:60px;
+            }
+            #blockC {
+                display:flex;
+                min-width: 640px;
+                height:60px;
+                flex:27;
+            }
+            #block1 {
+                box-sizing: border-box;
+                float: left;
+                height: 100%;
+                width: 130px;
+            }
+            .buttonblock {
+                box-sizing: border-box;
+                float: left;
+                height: 100%;
+                min-width: 160px;
+                padding-left:10px;
+                padding-right:10px;
+                position: relative;
+                flex:6;
+                z-index: 1;
+            }
+            #inputblock1 {
+            	display: flex;
+                float: left;
+                height: 100%;
+                padding-left:10px;
+                padding-right:10px;
+                flex: 3;
+            }
+            #inputblock2 {
+            	display: flex;
+                float: left;
+                height: 100%;
+                padding-left:10px;
+                padding-right:10px;
+                flex: 2;
+            }
+            .fileinfoblock {
+            	display: flex;
+                float: left;
+                height: 100%;
+                padding-left:0px;
+                padding-right:10px;
+                flex: 10;
+            }
+            .optionscontainer {
+                width:100%;
+                height:0px;
+                background-color: blue;
+                display: flex;
+            }
+            #optionspanel {
+                width:600px;
+                height:60px;
+                margin-left: calc(50% - 300px);
+                background: #3A648F;
+                border:0px solid #093E0F;
+                border-radius:0px 0px 20px 20px;
+                box-sizing: border-box;
+                box-shadow: 0px -2px 3px rgba(0,0,0,0.7) inset, 0px 2px 6px rgba(0,0,0,0.8);
+                padding:20px;
+                display: flex;
+                color: rgba(255,255,255,0.5);
+                justify-content: space-around;
+                user-select: none;
+                -moz-user-select: none;
+                cursor: default;
+                position: relative;
+                z-index: -1;
+                margin-top:-65px;
+                transition: margin-top 1s;
+            }
+            .optionblock, select, option {
+                font-family: sans-serif;
+            }
+            #helppanel {
+                width:900px;
+                min-height:620px;
+                margin-left: calc(50% - 450px);
+                background: #3A648F;
+                border:0px solid #093E0F;
+                border-radius:0px 0px 20px 20px;
+                box-sizing: border-box;
+                box-shadow: 0px -2px 3px rgba(0,0,0,0.7) inset, 0px 2px 6px rgba(0,0,0,0.8);
+                padding:40px;
+                padding-top: 20px;
+                color: rgba(255,255,255,0.5);
+                user-select: none;
+                -moz-user-select: none;
+                cursor: default;
+                position: relative;
+                z-index: -2;
+                margin-top:-625px;
+                transition: margin-top 1s;
+                text-align: left;
+            }
+            #helppanel a {
+                color: rgba(255,255,255,0.7);
+            }
+            #helppanel a:hover {
+                color: white;
+            }
+            #helppanel b {
+                color: white;
+                font-weight: normal;
+            }
+            #generating {
+                width:320px;
+                position: absolute;
+                left: calc(50vw - 160px);
+                top: calc(50vh - 15px);
+                background: #3A648F;
+                border-radius:35px 35px 35px 35px;
+                box-sizing: border-box;
+                box-shadow: 0px -2px 3px rgba(0,0,0,0.7) inset, 0px 2px 3px rgba(255,255,255,0.7) inset, 0px 6px 12px rgba(0,0,0,0.6);
+                padding:15px;
+                padding-left: 30px;
+                padding-right: 30px;
+                color: rgba(255,255,255,0.5);
+                user-select: none;
+                -moz-user-select: none;
+                cursor: default;
+                text-align: center;
+                z-index: 10;
+                opacity: 0.9;
+                display: none;
+            }
+            #progressbar {
+                margin-top:5px;
+                width:100%;
+                height:8px;
+                background-color: rgba(0,0,0,0.5);
+                border-radius:5px 5px 5px 5px;
+                overflow: hidden;
+            }
+            #progress {
+                margin: 0px;
+                width:0%;
+                height:100%;
+                background-color: rgba(255,255,255,0.6);
+                transition: width 0.15s;
+            }
+			#result {
+				margin:auto;
+                padding-top:65px;
+                display: block;
+			}
+            @media (max-width: 1546px) {
+                #result {
+                    padding-top:125px;
+                    display: block;
+                }
+            }
+			#deckname {
+				width: 208px;
+				flex: 3;
+                height: 28px;
+                margin-top: 13px;
+                padding-left:15px;
+                padding-right:15px;
+                background: #45BA53;
+                border:1px solid rgba(12,82,20,0.5);
+                border-radius: 25px;
+                box-shadow: 0px 2px 3px rgba(0,0,0,0.2) inset, 0px -2px 3px rgba(255,255,255,0.2) inset;
+                font-family: sans-serif;
+                font-weight: bold;
+                text-align: left;
+                color: rgba(0,0,0,0.6);
+			}
+            #author {
+            	width: 128px;
+                flex: 2;
+                height: 28px;
+                margin-top: 13px;
+                padding-left:15px;
+                padding-right:15px;
+                background: #45BA53;
+                border:1px solid rgba(12,82,20,0.5);
+                border-radius: 25px;
+                box-shadow: 0px 2px 3px rgba(0,0,0,0.2) inset, 0px -2px 3px rgba(255,255,255,0.2) inset;
+                font-family: sans-serif;
+                font-weight: bold;
+                text-align: left;
+                color: rgba(0,0,0,0.6);
+            }
+            #fileinfo {
+            	flex: 10;
+                width:calc(100% + 25px);
+                height: 28px;
+                margin-top: 13px;
+                margin-left: -25px;
+                padding-left:20px;
+                padding-right:10px;
+                background: #45BA53;
+                border:1px solid rgba(12,82,20,0.5);
+                border-radius: 0px 25px 25px 0px;
+                box-shadow: 0px 2px 3px rgba(0,0,0,0.2) inset, 0px -2px 3px rgba(255,255,255,0.2) inset;
+                font-family: sans-serif;
+                font-weight: bold;
+                user-select: none;
+                -moz-user-select: none;
+                text-align: left;
+                color: rgba(0,0,0,0.6);
+            }
+            #deckname:focus, #author:focus {
+                outline: none;
+                background: #8BD393;
+            }
+            #zipfile {
+                display: none;
+            }
+            .button {
+                width: 100%;
+                height: 38px;
+                box-sizing: border-box;
+                margin-top: 10px;
+                text-align: center;
+                line-height: 38px;
+                font-family: sans-serif;
+                font-weight: bold;
+                color: rgba(255,255,255,0.5);
+                border:0px solid #093E0F;
+                border-radius: 25px;
+                background: #3A648F;
+                box-shadow: 0px -2px 3px rgba(0,0,0,0.7) inset, 0px 2px 3px rgba(255,255,255,0.7) inset, 0px 2px 6px rgba(0,0,0,0.5);
+                user-select: none;
+                -moz-user-select: none;
+            }
+            .button:hover {
+                background: #4A749F;
+                color: white;
+            }
+            .button:focus {
+                outline: none;
+            }
+            .button:active {
+                left: 11px;
+                top: 11px;
+                box-shadow: 0px -2px 3px rgba(0,0,0,0.7) inset, 0px 2px 3px rgba(255,255,255,0.7) inset, 0px 1px 2px rgba(0,0,0,0.5);
+            }
+            .button:disabled {
+                opacity: 0.5;
+            }
+            .button:disabled:hover {
+                background: #3A648F;
+                color: rgba(255,255,255,0.5);
+            }
+            .button:disabled:active {
+                left: 10px;
+                top: 10px;
+                box-shadow: 0px -2px 3px rgba(0,0,0,0.7) inset, 0px 2px 3px rgba(255,255,255,0.7) inset, 0px 2px 6px rgba(0,0,0,0.5);
+            }
+            #home {
+                position: absolute;
+                height: 57px;
+                width:112px;
+                background-image: url(./res/logo.png);
+                background-size: cover;
+                left: 10px;
+                top: 1px;
+            }
+            #home:hover {
+                background-image: url(./res/logo_hover.png);
+            }
+            hr {
+                border-color: rgba(255,255,255,0.5);
+            }
+
+
+		</style>
+
+    </head>
+
+    <body>
+		<div id="outer">
+            <div id="menubar">
+                <div id="container">
+                    <div id="block1">
+                        <a id="home" href="http://www.northernbytes.ca/iphone/cardshark/" target="_blank" title="Go to the Cardshark homepage."></a>
+                    </div>
+                    <div class="row" id="blockA">
+                        <div id="inputblock1" title="Input the deck name here.">
+                        	<input type="text" id="deckname" maxlength="64" placeholder="Deck name">
+                        </div>
+                        <div id="inputblock2" title="Input your name here.">	
+                        	<input type="text" id="author" maxlength="48" placeholder="Author name">
+                        </div>
+                    </div>
+                    <div class="row" id="blockB">
+                        <div class="buttonblock">
+                            <button class="button" id="filebutton" title="Load a ZIP file">SELECT FILE</button>
+                            <input type="file" id="zipfile" accept=".zip"/>
+                        </div>
+                        <div class="fileinfoblock">
+                            <input type="text" id="fileinfo" maxlength="48" value="No file selected" readonly>
+                        </div>
+                        <div class="row" id="blockC">
+                            <div class="buttonblock">
+                                <button type="button" class="button" id="options" title="Click to show/hide advanced options">ADV. OPTIONS</button>
+                            </div>
+                            <div class="buttonblock">
+                                <button type="button" class="button" id="gen1" title="Click to generate your deck of cards." disabled>GENERATE</button>
+                            </div>
+                            <div class="buttonblock">
+                                <button type="button" class="button" id="download" title="Click to download the result as a PNG file." disabled>DOWNLOAD</button>
+                            </div>
+                            <div class="buttonblock">
+                                <button type="button" class="button" id="help" title="Click to show/hide the help window.">HELP</button>
+                            </div>
+                        </div>
+                    </div>
+                        
+        		</div>
+            </div>
+            <div class="optionscontainer">
+                <div id="optionspanel" class="slideblock">
+                    <div class="optionblock" title="Select the resolution for your deck.&#10;HD is the recommended option.">
+                        Deck Size:
+                        <select id="decksize">
+                            <option value="1" title="This option is obsolete.&#10;Added for compatibility's sake.">SD (1024x1024)</option>
+                            <option value="2" title="This is the recommended option." selected>HD (2048x2048)</option>
+                            <option value="4" title="Select this for the maximum quality.&#10;Useful for 1080p screens and larger.">UHD (4096x4096)</option>
+                        </select>
+                    </div>
+                    <div class="optionblock" title="Smoothing effect to reduce aliasing.">
+                        Smoothing:
+                        <select id="smoothfactor">
+                            <option value="0.875" title="Smoothest. May be too blurry.">4</option>
+                            <option value="0.75" title="Smoother. May be a bit blurry.">3</option>
+                            <option value="0.6875" title="Smooth">2</option>
+                            <option value="0.625" title="Normal. Best balance in most cases." selected>1</option>
+                            <option value="0.6" title="Sharp. Might have a bit of aliasing.">0</option>
+                        </select>
+                    </div>
+                    <div class="optionblock" title="Choose to use a frame for the cards or not.">
+                        Use Frame:
+                        <select id="useframe">
+                            <option value="0" selected>No</option>
+                            <option value="1">Yes</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="optionscontainer">
+                <div id="helppanel" class="slideblock">
+                    <b>GENERAL INFO:</b>
+                    <hr>
+                    <p>CardShark Deck Packer makes it easier for you to make your custom decks. Simply load a ZIP file with your custom card images, fill the "Deck Name" and "Deck Author" fields and click on the "GENERATE" button.<br>After the deck has been generated, click the "DOWNLOAD" button to get a PNG image ready to be loaded as a custom deck by CardShark. You can also right-click on the generated deck and select "save image as..."</p>
+                    <p>The card images in the ZIP file should be named after the card name. For example, the Ace of Spades would be "AS.png", the 8 of Hearts would be "8H.png", the Jack of Clubs would be "JC.png", etc... The joker is named "joker.png" and the card back is named "back.png".<br>A sample ZIP file is provided, so you can see the file structure and naming method used for the image files contained in the ZIP. You can get the sample file by clicking on <a href="#">this link</a>.</p>
+                    <br>
+                    <b>ADVANCED OPTIONS:</b>
+                    <hr>
+                    <p>The default options usually provide the best results in most situations. However, in some cases you might want to tweak some settings to get a better result. Click on the "ADV. OPTIONS" button to show/hide the options tab.</p>
+                    <p><b>- DECK SIZE:</b> You can select the final resolution of the custom deck. There are 3 options provided: SD, HD and UHD.<br> Using the default (HD) option is recommended, although you could choose SD if you're using an old version of CardShark and it doesn't support HD custom decks.<br>
+                    UHD is not really needed unless you have a 2K or larger screen, but if you're obsessed with image quality, the option is there. Note that the file size of an UHD deck is about 4.5 MB, while an HD deck is just about 1.5 MB.</p>
+                    <p><b>- SMOOTHING:</b> You can select the degree of smoothing applied when generating a deck. The larger the number, the more smooth/blurry the image will be. For SD decks it's recommended to set the smoothing to 0 or 1 so the image doesn't lose detail. For HD decks it's recommended to set the smoothing between 0 and 2. For UHD decks you can set whatever value you want.</p>
+                    <p><b>- USE FRAME:</b> Enable this option if you have images of just the inner part of the cards without edges, and you need the card edges to be automatically created for you.</p>
+                    <br>
+                    <b>MORE INFO:</b>
+                    <hr>
+                    <p>Original deck-packer code by Philip Stroffolino. Additional code and website design by Hi-Ban. ZIP file support by <a href="https://stuk.github.io/jszip/">JSZIP library</a>.<br>
+                    For more info about CardShark, visit the <a href="http://www.northernbytes.ca/iphone/cardshark/">CardShark home page</a>.</p>
+                </div>
+            </div>
+            <div class="optionscontainer">
+                <div id="generating">
+                    <div><b>Generating Deck. Please wait...</b></div>
+                    <div id="progressbar">
+                        <div id="progress"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <img src="./res/empty.png" id="result" alt="">
+
+    </body>
+
+</html>

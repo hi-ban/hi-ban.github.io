@@ -129,7 +129,7 @@
 		/* COMMON FUNCTIONS ***********************************************************/
 
 		function calccracktime(entropy){
-			var tps = 24000000000; /*tries per second (MD5)*/
+			var tps = 260000000000; /*tries per second (MD5) (updated to 2022)*/
 			var cracktime = (Math.pow(2, entropy) / tps);
 			var units = "";
 
@@ -155,12 +155,24 @@
 				if (Math.round(cracktime/2628000)/2 == 1){units = "month";}
 				else {units = "months";}
 				return Math.round(cracktime/2628000)/2 + " " + units;
-			} else if (cracktime/2 < 315360000000){
+			} else if (cracktime/2 < 31536000000){
 				if (Math.round(cracktime/31536000)/2 == 1){units = "year";}
 				else {units = "years";}
 				return Math.round(cracktime/31536000)/2 + " " + units;
-			} else {
-				return "10000+ years";
+			} else if (cracktime/2 < 31536000000000){
+				if (Math.round(cracktime/31536000000)/2 == 1){units = "K year";}
+				else {units = "K years";}
+				return Math.round(cracktime/31536000000)/2 + "" + units;
+			} else if (cracktime/2 < 31536000000000000){
+				if (Math.round(cracktime/31536000000000)/2 == 1){units = "M year";}
+				else {units = "M years";}
+				return Math.round(cracktime/31536000000000)/2 + "" + units;
+			} else if (cracktime/2 < 31536000000000000000){
+				if (Math.round(cracktime/31536000000000000)/2 == 1){units = "Bn year";}
+				else {units = "Bn years";}
+				return Math.round(cracktime/31536000000000000)/2 + "" + units;
+			} else{
+				return "More than 1000Bn years";
 			}
 		}
 
@@ -331,7 +343,7 @@
 				/* Entropy = log2(total_charset ^ passwd_length ) */
 				ent = Math.round(Math.log2(Math.pow(chars.length, length)));
 			}
-			document.getElementById("entropy").innerHTML = "<b>" + field_pwd.value.length + "-digit / " + ent + "-bit</b>";
+
 			if(ent < 40){
 				entcolor = "#DC0000";
 			} else if(ent < 64){
@@ -355,7 +367,11 @@
 			}
 			document.getElementById("entropy").style.color = entcolor;
 			document.getElementById("msglen").innerHTML = "Length: " + length + "-digit";
-			document.getElementById("entropy").innerHTML = "Entropy: " + ent + "-bit";
+			if (ent == "Infinity"){
+				document.getElementById("entropy").innerHTML = "Entropy: " + ">1024-bit";
+			} else {
+				document.getElementById("entropy").innerHTML = "Entropy: " + ent + "-bit";
+			}
 		}
 
 		/* FUNCTIONS FOR SECOND BLOCK **************************************************/
@@ -554,7 +570,11 @@
 			}
 			document.getElementById("w2_entropy").style.color = entcolor;
 			document.getElementById("w2_msglen").innerHTML = "Length: " + w2_length + "-digit";
-			document.getElementById("w2_entropy").innerHTML = "Entropy: " + ent + "-bit";
+			if (ent == "Infinity"){
+				document.getElementById("w2_entropy").innerHTML = "Entropy: " + ">1024-bit";
+			} else {
+				document.getElementById("w2_entropy").innerHTML = "Entropy: " + ent + "-bit";
+			}
 		}
 
 		/* FUNCTIONS FOR THIRD BLOCK ***************************************************/
@@ -666,7 +686,7 @@
 				security = "ULTRA HIGH";
 			} else {
 				entcolor = "#B40096";
-				security = "LUDICROUSLY HIGH";
+				security = "LUDICROUS";
 			}
 			document.getElementById("w3_entropy").style.color = entcolor;
 			document.getElementById("w3_security").style.color = entcolor;
@@ -933,12 +953,16 @@
 				security = "ULTRA HIGH";
 			} else {
 				entcolor = "#B40096";
-				security = "LUDICROUSLY HIGH";
+				security = "LUDICROUS";
 			}
 			document.getElementById("w3_entropy").style.color = entcolor;
 			document.getElementById("w3_security").style.color = entcolor;
 			document.getElementById("w3_msglen").innerHTML = "Length: " + w3_length + "-digit";
-			document.getElementById("w3_entropy").innerHTML = "<b>" + "Security: "+ security + " / " + Math.round(ent) + "-bit</b>";
+			if (ent == "Infinity"){
+				document.getElementById("w3_entropy").innerHTML = "<b>" + "Security: "+ security + " (>1024)</b>";
+			} else {
+				document.getElementById("w3_entropy").innerHTML = "<b>" + "Security: "+ security + " (" + Math.round(ent) + ")</b>";
+			}
 			document.getElementById("w3_security").innerHTML = "Estimated crack time: "+ calccracktime(ent);
 		}
 
@@ -1478,6 +1502,10 @@
 					<option value="32">32-digit</option>
 					<option value="48">48-digit</option>
 					<option value="64">64-digit</option>
+					<option value="96">96-digit</option>
+					<option value="128">128-digit</option>
+					<option value="192">192-digit</option>
+					<option value="256">256-digit</option>
 				</select>
 				<select id="charset">
 					<option value="0">[10] Numerals</option>
@@ -1519,6 +1547,9 @@
 					<option value="192">192-bit</option>
 					<option value="224">224-bit</option>
 					<option value="256">256-bit</option>
+					<option value="512">512-bit</option>
+					<option value="768">768-bit</option>
+					<option value="1024">1024-bit</option>
 				</select>
 				<select id="w2_charset">
 					<option value="0">[10] Numerals</option>
@@ -1545,7 +1576,7 @@
 				<span id="w3_entropy" class="entropyfield"></span>
 			</div>
 			<div>
-				<input type="text" id="w3_result" placeholder="Type or paste a password" maxlength="78"> 
+				<input type="text" id="w3_result" placeholder="Type or paste a password" maxlength="512"> 
 			</div>
 			<span id="w3_security">Security: N/A</span>
 			<button id="w3_clr_button" class="button_red" disabled>Clear</button>

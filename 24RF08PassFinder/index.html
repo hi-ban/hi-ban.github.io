@@ -183,7 +183,7 @@
 			if (file) {
 				reader.readAsBinaryString(file);
 			} else {
-				document.getElementById("results").innerHTML = "No file loaded.<br>";
+				document.getElementById("results").innerHTML = "No file selected.<br>";
 			}	
 		}
 
@@ -200,7 +200,7 @@
 			if (file) {
 				reader.readAsBinaryString(file);
 			} else {
-				document.getElementById("results").innerHTML = "No file loaded.<br>";
+				document.getElementById("results").innerHTML = "No file selected.<br>";
 			}	
 		}
 
@@ -217,7 +217,7 @@
 			if (file) {
 				reader.readAsBinaryString(file);
 			} else {
-				document.getElementById("results").innerHTML = "No file loaded.<br>";
+				document.getElementById("results").innerHTML = "No file selected.<br>";
 			}
 		}
 
@@ -231,17 +231,17 @@
 <body>
 		<div id="mydiv">
 			<h1>24RF08 PASSWORD FINDER</h1>
-			<input id="binfile" type="file" name="binfile" accept=".bin"><select id="keyboard">
+			<input id="binfile" type="file" name="binfile" accept=".bin" title="Select a dump file to read"><select id="keyboard" title="Select keyboard layout">
 				<option value="QWERTY" >QWERTY</option>
 				<option value="QWERTZ" >QWERTZ</option>
 				<option value="AZERTY" >AZERTY</option>
 			</select>
 			<br><br>
-			<div id="results">No file loaded.</div>
+			<div id="results"></div>
 			<br>
-			<button id="decodebutton" onclick="doMagic()">PASSWORD FIND</button>
-			<button id="patchbutton" onclick="doMagic2()">PASSWORD 1234567</button>
-			<button id="nopassbutton" onclick="doMagic3()">PASSWORD DISABLE</button>
+			<button id="decodebutton" title="Read dump data and decode password" onclick="doMagic()">PASSWORD FIND</button>
+			<button id="patchbutton" title="Create a patched dump file with password 1234567" onclick="doMagic2()">PASSWORD 1234567</button>
+			<button id="nopassbutton" title="Create a patched dump file with no password" onclick="doMagic3()">PASSWORD DISABLE</button>
 			<br>
 		</div>
 </body>

@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TEAM BALANCER SIMULATION</title>
+    <style>
+
+        body{
+            /*font-family: 'Courier New', sans-serif;*/
+            font-family: sans-serif;
+            font-size: 14px;
+            background-color: black;
+            color: white;
+            padding: 0px;
+            margin: 0px;
+            margin-top: 0px;
+        }
+
+        #mydiv{
+            position: absolute;
+            margin: auto;
+            left: 30px;
+            top: 30px;
+            margin-top: 0px;
+            margin-left: 0px;
+            padding: 20px;
+            background-color: #444444;
+            width: 1800px;
+            height: 830px;
+            border-radius: 5px;
+            text-align: center;
+        }
+
+        #lobbyContainerTitle{
+            position: absolute;
+            top: 100px;
+            left: 20px;
+            background-color: black;
+            width: 550px;
+            height: 50px;
+            display: inline-block;
+            vertical-align: top;
+            padding: 10px;
+            border: 1px solid white;
+        }
+
+        #teamATitle{
+            position: absolute;
+            top: 100px;
+            left: 1220px;
+            background-color: black;
+            width: 275px;
+            height: 50px;
+            display: inline-block;
+            vertical-align: top;
+            padding: 10px;
+            border: 1px solid white;
+        }
+
+        #teamBTitle{
+            position: absolute;
+            top: 100px;
+            left: 1525px;
+            background-color: black;
+            width: 275px;
+            height: 50px;
+            display: inline-block;
+            vertical-align: top;
+            padding: 10px;
+            border: 1px solid white;
+        }
+
+        #teamASub{
+            position: absolute;
+            top: 778px;
+            left: 1220px;
+            background-color: black;
+            width: 275px;
+            height: 14px;
+            display: inline-block;
+            vertical-align: top;
+            padding: 10px;
+            border: 1px solid white; 
+        }
+
+        #teamBSub{
+            position: absolute;
+            top: 778px;
+            left: 1525px;
+            background-color: black;
+            width: 275px;
+            height: 14px;
+            display: inline-block;
+            vertical-align: top;
+            padding: 10px;
+            border: 1px solid white; 
+        }
+
+        #teamDiffSub{
+            position: absolute;
+            top: 820px;
+            left: 1220px;
+            background-color: black;
+            width: 580px;
+            height: 14px;
+            display: inline-block;
+            vertical-align: top;
+            padding: 10px;
+            border: 1px solid white; 
+        }
+
+        #lobbyContainer{
+            position: absolute;
+            top: 180px;
+            left: 20px;
+            background-color: black;
+            width: 550px;
+            height: 640px;
+            display: inline-block;
+            vertical-align: top;
+            padding: 10px;
+            border: 1px solid white;
+        }
+
+        #teamAContainer{
+            position: absolute;
+            top: 180px;
+            left: 1220px;
+            background-color: black;
+            width: 275px;
+            height: 570px;
+            display: inline-block;
+            vertical-align: top;
+            padding: 10px;
+            border: 1px solid white;
+        }
+
+        #teamBContainer{
+            position: absolute;
+            top: 180px;
+            left: 1525px;
+            background-color: black;
+            width: 275px;
+            height: 570px;
+            display: inline-block;
+            vertical-align: top;
+            padding: 10px;
+            border: 1px solid white;
+        }
+
+        #playerLobby, #playerLobby2, #playerLobby3, #playerLobby4, #teamADiv, #teamADiv2, #teamBDiv, #teamBDiv2{
+            background-color: black;
+            width: 110px;
+            height: 550px;
+            display: inline-block;
+            vertical-align: top;
+            padding: 10px;
+        }
+
+        h1{
+            text-align: center;
+            
+            margin-top: 5px;
+            margin-left: 15px;
+            border-radius: 3px;
+            letter-spacing: 0.55em;
+            text-shadow: 3px 3px #222222;
+            color: white;
+        }
+
+        button{
+            width: 300px;
+            height: 50px;
+            margin: auto;
+            margin-left: 5px;
+            margin-right: 5px;
+            font-family: sans-serif;
+        }
+
+        #skewSlider{
+            width: 300px;
+            appearance: none;
+            background: white;
+            transform: rotate(180deg);
+        }
+
+        #skewSlider::-webkit-slider-thumb, #groupSlider::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 20px;
+          height: 20px;
+          background: #888888;
+          cursor: pointer;
+        }
+
+        #groupSlider{
+            width: 300px;
+            appearance: none;
+            background: white;
+        }
+
+    </style>
+    <script type="text/javascript">
+
+        // TEAM BALANCER SIMULATION (32 v 32)
+
+        // Global variables
+        let sampleLobby = [];
+        let lobbyEntities = [];
+        let teamA = [];
+        let teamB = [];
+        let sumA = 0;
+        let sumB = 0;
+        let countA = 0;
+        let countB = 0;
+        let initialUnbalance = 0;
+        let unbalance = 0;
+        let groupBias = 1;
+        let maxValueDiff = 10;
+        let MAX_UNBALANCE = maxValueDiff;
+        let MIN_UNBALANCE = (MAX_UNBALANCE * -1);
+
+        // Simulation related variables
+        let totalIterations = 0;
+        let totalBalanced = 0;
+        let totalUnbalanced = 0;
+        let unbalanceAbsoluteSum = 0;
+        let avgUnbalance = 0;
+        let swapsAbsoluteSum = 0;
+        let avgSwaps = 0;
+        let highestDiff = 0;
+
+        // Generate a random skill value between min and max.
+        function randomSkill(min, max, skew = 1) {
+            let u = 0, v = 0;
+            while(u === 0) u = Math.random(); //Converting [0,1) to (0,1)
+            while(v === 0) v = Math.random();
+            let num = Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
+          
+            num = num / 10.0 + 0.5 // Translate to 0 -> 1
+            if (num > 1 || num < 0) {
+                num = Math.random(min, max); // resample between 0 and 1 if out of range
+            }
+          
+            else{
+                num = Math.pow(num, skew); // Skew
+                num *= max - min; // Stretch to fill range
+                num += min; // offset to min
+            }
+            return Math.round(num);
+        }
+
+        // Generate a random skill value between min and max (old function)
+        //let randomSkill = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+        // Recalculates existing balance between teams
+        function recalculateBalance(){
+            sumA = 0;
+            sumB = 0;
+            unbalance = 0;
+
+            for (var i = 0; i < teamA.length; i++) {
+                sumA += teamA[i].multipliedValue;
+            }
+
+            for (var j = 0; j < teamB.length; j++) {
+                sumB += teamB[j].multipliedValue;
+            }
+
+            unbalance = Math.round(sumA - sumB);
+
+            console.log("NEW TEAM DIFF: " + unbalance + " SPM");
+        }
+
+        // Gets average value of the values from an array
+        let getAverage = (arr) => arr.length ? arr.reduce((sum, num) => sum + num, 0) / arr.length : 0
+
+        function sortPlayersBySkill(team){
+            // Sort players from a team by their multiplied value (Highest to Lowest)
+            team.sort((a, b) => (b.multipliedValue / b.players.length) - (a.multipliedValue / a.players.length));
+            //team.sort((a, b) => b.multipliedValue - a.multipliedValue);
+        }
+
+        // Distributes the players from lobbyInput into teams A and B and applies the necessary team balancing steps to ensure teams are balanced.
+        // MAIN STEPS:
+        // 1- Wait until the lobby is full and all players are determined.
+        // 2- Define a skill value (generally based on performance stats) for each player.
+        // 3- Apply modifiers (optional) to take into account increased performance from pre-made player groups (friends coordinating through voice chat usually perform better as a group than playing solo).
+        // 4- Distribute the players across both teams using a Greedy Snake Draft method.
+        // 5- Sum the player values from each team in order to calculate the difference between the total value of the teams.
+        // 6- Apply a second balancing pass, consisting on swapping players or groups-of-players between both teams (as needed) in order to reduce the value difference between both teams down to a satisfactory level.
+        function balanceTeams(lobbyInput) {
+            // Measure elapsed time
+            const startTime = Date.now();
+
+            // Define the Synergy Multipliers based on squad size. Pre-made squads are expected to perform higher then solo players. These values can be adjusted.
+            const SYNERGY_MULTIPLIERS = {
+                1: 1.00,  // Solo player
+                2: 1 + (0.10 * groupBias),  // 2-Man Squad (10% boost)
+                3: 1 + (0.20 * groupBias),  // 3-Man Squad (20% boost)
+                4: 1 + (0.35 * groupBias),  // 4-Man Squad (35% boost)
+            };
+
+            // Define maximum allowed unbalance values. These values can be adjusted.
+            MAX_UNBALANCE = maxValueDiff;
+            MIN_UNBALANCE = (MAX_UNBALANCE * -1);
+
+            // Reset global variables
+            lobbyEntities = [];
+            teamA = [];
+            teamB = [];
+            sumA = 0;
+            sumB = 0;
+            countA = 0;
+            countB = 0;
+            unbalance = 0;
+
+            // Process players from lobbyInput and apply multipliers based on squad size
+            lobbyEntities = lobbyInput.map(entity => {
+                const size = entity.players.length;
+                const baseSum = entity.players.reduce((sum, playerSkill) => sum + playerSkill, 0);
+                const multiplier = SYNERGY_MULTIPLIERS[size] || 1.00;
+                const multipliedValue = Math.round((baseSum * multiplier) * 100) / 100;
+
+                return {
+                    size: size,
+                    baseValue: baseSum,
+                    multipliedValue: multipliedValue,
+                    players: entity.players,
+                    name: entity.name || `${size}-man Squad`
+                };
+            });
+
+            // Sort players by their multiplied value (Highest to Lowest)
+            sortPlayersBySkill(lobbyEntities);
+
+            console.log("INITIAL POOL OF PLAYERS");
+            console.dir(lobbyEntities, { depth: null });
+
+            // Distribute players using a dynamic Greedy Snake Draft algorithm.
+            for (let entity of lobbyEntities) {
+                // Check capacity constraints (Enforce max 32 players per team)
+                const canFitA = (countA + entity.size) <= 32;
+                const canFitB = (countB + entity.size) <= 32;
+
+                // Send player to the team with the lower current skill sum, respecting capacity limits
+                if ((sumA <= sumB && canFitA) || !canFitB) {
+                    teamA.push(entity);
+                    sumA += entity.multipliedValue;
+                    countA += entity.size;
+                } else if (canFitB) {
+                    teamB.push(entity);
+                    sumB += entity.multipliedValue;
+                    countB += entity.size;
+                }  
+            }
+
+            // Once the players are distributed, calculate the initial unbalance
+            unbalance = Math.round(sumA - sumB);
+            initialUnbalance = unbalance;
+            console.log("INITIAL TEAM DIFF: " + initialUnbalance + " SPM");
+
+            // If unbalance is too high, swap players between teams to minimize unbalance
+            let iterations = 0;
+            const MAX_ITERATIONS = 10; // ensure it doesn't get trapped in an infinite loop
+            swapAB: while ((unbalance > MAX_UNBALANCE) && (iterations < MAX_ITERATIONS)) {
+                // search for a pair of players with the minimum required point difference (A higher skill than B) to get teams balanced with a single swap
+                console.log("Attempting to swap players from A to B...");
+                for (var j = teamB.length - 1; j >= 0; j--) {
+                    for (var i = teamA.length - 1; i >= 0; i--) {
+                        if ((teamA[i].size == teamB[j].size) && (unbalance - ((teamA[i].multipliedValue - teamB[j].multipliedValue) * 2) <= MAX_UNBALANCE) && (unbalance - ((teamA[i].multipliedValue - teamB[j].multipliedValue) * 2) >= MIN_UNBALANCE)) {
+                            console.log("SWAPPED: A(" + i + ") " + teamA[i].multipliedValue + " <--> B(" + j + ") " + teamB[j].multipliedValue);
+                            let playerToSwap = teamA[i];
+                            teamA[i] = teamB[j];
+                            teamB[j] = playerToSwap;
+                            recalculateBalance();
+                            swapsAbsoluteSum++; // count swapped players for simulation stats
+                            break swapAB;
+                        }
+                    }
+                }
+                iterations++;
+                console.log("Can't find single suitable pair. Trying with 2 pairs.");
+                // If no suitable pair of players is found, we assume the unbalance is too high to balance it with a single swap. So we search for the pair of players with the maximum point difference, swap them to reduce the unbalance, and retry the process.
+                highestPairA: for (var j = teamB.length - 1; j >= 0; j--) {
+                    for (var i = 0; i < teamA.length; i++) {
+                        if ((teamA[i].size == teamB[j].size) && (teamA[i].multipliedValue > teamB[j].multipliedValue) && (Math.abs(unbalance - ((teamA[i].multipliedValue - teamB[j].multipliedValue) * 2)) < Math.abs(unbalance))) {
+                            console.log("SWAPPED: A(" + i + ") " + teamA[i].multipliedValue + " <--> B(" + j + ") " + teamB[j].multipliedValue);
+                            let playerToSwap = teamA[i];
+                            teamA[i] = teamB[j];
+                            teamB[j] = playerToSwap;
+                            recalculateBalance();
+                            swapsAbsoluteSum++; // count swapped players for simulation stats
+                            break highestPairA;
+                        }
+                    }
+                }
+            }
+
+            iterations = 0;
+            swapBA: while ((unbalance < MIN_UNBALANCE) && (iterations < MAX_ITERATIONS)) {
+                // search for a pair of players with the minimum required point difference (B higher skill than A) to get teams balanced with a single swap
+                console.log("Attempting to swap players from B to A...");
+                for (var i = teamA.length - 1; i >= 0; i--) {
+                    for (var j = teamB.length - 1; j >= 0; j--) {
+                        if ((teamA[i].size == teamB[j].size) && (unbalance + ((teamB[j].multipliedValue - teamA[i].multipliedValue) * 2) <= MAX_UNBALANCE) && (unbalance + ((teamB[j].multipliedValue - teamA[i].multipliedValue) * 2) >= MIN_UNBALANCE)) {
+                            console.log("SWAPPED: A(" + i + ") " + teamA[i].multipliedValue + " <--> B(" + j + ") " + teamB[j].multipliedValue);
+                            let playerToSwap = teamA[i];
+                            teamA[i] = teamB[j];
+                            teamB[j] = playerToSwap;
+                            recalculateBalance();
+                            swapsAbsoluteSum++; // count swapped players for simulation stats
+                            break swapBA;
+                        }
+                    }
+                }
+                iterations++;
+                console.log("Can't find single suitable pair. Trying with 2 pairs.");
+                // If no suitable pair of players is found, we assume the unbalance is too high to balance it with a single swap. So we search for the pair of players with the maximum point difference, swap them to reduce the unbalance, and retry the process.
+                highestPairB: for (var i = teamA.length - 1; i >= 0; i--) {
+                    for (var j = 0; j < teamB.length; j++) {
+                        if ((teamA[i].size == teamB[j].size) && (teamB[j].multipliedValue > teamA[i].multipliedValue) && (Math.abs(unbalance - ((teamB[j].multipliedValue - teamA[i].multipliedValue) * 2)) < Math.abs(unbalance))) {
+                            console.log("SWAPPED: A(" + i + ") " + teamA[i].multipliedValue + " <--> B(" + j + ") " + teamB[j].multipliedValue);
+                            let playerToSwap = teamA[i];
+                            teamA[i] = teamB[j];
+                            teamB[j] = playerToSwap;
+                            recalculateBalance();
+                            swapsAbsoluteSum++; // count swapped players for simulation stats
+                            break highestPairB;
+                        }
+                    }
+                }
+            }
+
+            // Sort (again) players by skill in the final teams, for human readability
+            sortPlayersBySkill(teamA);
+            sortPlayersBySkill(teamB);
+
+            // calculate elapsed time
+            const elapsedMs = Date.now() - startTime;
+
+            // store highest diff for the simulation stats
+            if (Math.abs(unbalance) > Math.abs(highestDiff)) {
+                highestDiff = Math.abs(unbalance);
+            }
+            
+
+            // Print final info in the console
+            console.log("TEAM BALANCING COMPLETE");
+            console.log("ELAPSED TIME: " + elapsedMs + "ms");
+            console.log("--------------------------------------------------");
+            console.log("TEAM A: " + countA + " Players | Skill Sum: " + Math.round(sumA));
+            console.dir(teamA, { depth: null });
+            console.log("TEAM B: " + countB + " Players | Skill Sum: " + Math.round(sumB));
+            console.dir(teamB, { depth: null });
+            console.log("TEAM DIFF (A-B): " + unbalance + " SPM");
+        }
+
+        // Reads the results and visually presents them in the webpage. Not relevant for the balance process.
+        function webVisualOutput() {
+
+            // Reset the divs 
+            while (document.getElementById("playerLobby").hasChildNodes()) {
+                document.getElementById("playerLobby").removeChild(document.getElementById("playerLobby").firstChild);
+            }
+            while (document.getElementById("playerLobby2").hasChildNodes()) {
+                document.getElementById("playerLobby2").removeChild(document.getElementById("playerLobby2").firstChild);
+            }
+            while (document.getElementById("playerLobby3").hasChildNodes()) {
+                document.getElementById("playerLobby3").removeChild(document.getElementById("playerLobby3").firstChild);
+            }
+            while (document.getElementById("playerLobby4").hasChildNodes()) {
+                document.getElementById("playerLobby4").removeChild(document.getElementById("playerLobby4").firstChild);
+            }
+            while (document.getElementById("teamADiv").hasChildNodes()) {
+                document.getElementById("teamADiv").removeChild(document.getElementById("teamADiv").firstChild);
+            }
+            while (document.getElementById("teamADiv2").hasChildNodes()) {
+                document.getElementById("teamADiv2").removeChild(document.getElementById("teamADiv2").firstChild);
+            }
+            while (document.getElementById("teamBDiv").hasChildNodes()) {
+                document.getElementById("teamBDiv").removeChild(document.getElementById("teamBDiv").firstChild);
+            }
+            while (document.getElementById("teamBDiv2").hasChildNodes()) {
+                document.getElementById("teamBDiv2").removeChild(document.getElementById("teamBDiv2").firstChild);
+            }
+
+            // Display the initial 64 players of the lobby
+            let lobbyEntitiesCounter = 0;
+            let playerLobbyDiv = document.getElementById("playerLobby");
+            for (var i = 0; i < lobbyEntities.length; i++) {
+                for (var j = 0; j < lobbyEntities[i].players.length; j++) {
+                    const node = document.createElement("div");
+                    node.style.width = "100px";
+                    node.style.border = "1px solid white";
+                    node.style.display = "inline-block";
+
+                    const textnode = document.createTextNode(lobbyEntities[i].players[j]);
+                    node.appendChild(textnode);
+
+                    switch (true) {
+                        case (lobbyEntities[i].players[j] < 100):
+                            node.style.backgroundColor = "red";
+                            break;
+                        case (lobbyEntities[i].players[j] < 250):
+                            node.style.backgroundColor = "orange";
+                            node.style.color = "black";
+                            break;
+                        case (lobbyEntities[i].players[j] < 400):
+                            node.style.backgroundColor = "yellow";
+                            node.style.color = "black";
+                            break;
+                        case (lobbyEntities[i].players[j] < 550):
+                            node.style.backgroundColor = "DarkGreen";
+                            break;
+                        default:
+                            node.style.backgroundColor = "blue";
+                            break;
+                    }
+
+                    playerLobbyDiv.appendChild(node);
+
+                    const newline = document.createElement("br");
+                    playerLobbyDiv.appendChild(newline);
+
+                    lobbyEntitiesCounter++;
+                }
+
+                const newspace = document.createElement("p");
+                playerLobbyDiv.appendChild(newspace);
+
+                if (lobbyEntitiesCounter < 16) {
+                    playerLobbyDiv = document.getElementById("playerLobby");
+                } else if (lobbyEntitiesCounter < 32) {
+                    playerLobbyDiv = document.getElementById("playerLobby2");
+                } else if (lobbyEntitiesCounter < 48) {
+                    playerLobbyDiv = document.getElementById("playerLobby3");
+                } else {
+                    playerLobbyDiv = document.getElementById("playerLobby4");
+                }
+            }
+
+            // Display the players in team A
+            let teamACounter = 0;
+            let teamDiv = document.getElementById("teamADiv");
+            for (var i = 0; i < teamA.length; i++) {
+                for (var j = 0; j < teamA[i].players.length; j++) {
+                    const node = document.createElement("div");
+                    node.style.width = "100px";
+                    node.style.border = "1px solid white";
+                    node.style.display = "inline-block";
+
+                    const textnode = document.createTextNode(teamA[i].players[j]);
+                    node.appendChild(textnode);
+
+                    switch (true) {
+                        case (teamA[i].players[j] < 100):
+                            node.style.backgroundColor = "red";
+                            break;
+                        case (teamA[i].players[j] < 250):
+                            node.style.backgroundColor = "orange";
+                            node.style.color = "black";
+                            break;
+                        case (teamA[i].players[j] < 400):
+                            node.style.backgroundColor = "yellow";
+                            node.style.color = "black";
+                            break;
+                        case (teamA[i].players[j] < 550):
+                            node.style.backgroundColor = "DarkGreen";
+                            break;
+                        default:
+                            node.style.backgroundColor = "blue";
+                            break;
+                    }
+
+                    teamDiv.appendChild(node);
+
+                    const newline = document.createElement("br");
+                    teamDiv.appendChild(newline);
+
+                    teamACounter++;
+                }
+
+                const newspace = document.createElement("p");
+                teamDiv.appendChild(newspace);
+
+                if (teamACounter < 16) {
+                    teamDiv = document.getElementById("teamADiv");
+                } else {
+                    teamDiv = document.getElementById("teamADiv2");
+                }
+            }
+
+            // Display the players in team B
+            let teamBCounter = 0;
+            teamDiv = document.getElementById("teamBDiv");
+            for (var i = 0; i < teamB.length; i++) {
+                for (var j = 0; j < teamB[i].players.length; j++) {
+                    const node = document.createElement("div");
+                    node.style.width = "100px";
+                    node.style.border = "1px solid white";
+                    node.style.display = "inline-block";
+
+                    const textnode = document.createTextNode(teamB[i].players[j]);
+                    node.appendChild(textnode);
+
+                    switch (true) {
+                        case (teamB[i].players[j] < 100):
+                            node.style.backgroundColor = "red";
+                            break;
+                        case (teamB[i].players[j] < 250):
+                            node.style.backgroundColor = "orange";
+                            node.style.color = "black";
+                            break;
+                        case (teamB[i].players[j] < 400):
+                            node.style.backgroundColor = "yellow";
+                            node.style.color = "black";
+                            break;
+                        case (teamB[i].players[j] < 550):
+                            node.style.backgroundColor = "DarkGreen";
+                            break;
+                        default:
+                            node.style.backgroundColor = "blue";
+                            break;
+                    }
+
+                    teamDiv.appendChild(node);
+
+                    const newline = document.createElement("br");
+                    teamDiv.appendChild(newline);
+
+                    teamBCounter++;
+                }
+
+                const newspace = document.createElement("p");
+                teamDiv.appendChild(newspace);
+
+                if (teamBCounter < 16) {
+                    teamDiv = document.getElementById("teamBDiv");
+                } else {
+                    teamDiv = document.getElementById("teamBDiv2");
+                }
+            }
+
+            // Display the team's values
+            let teamASub = document.getElementById("teamASub");
+            let teamBSub = document.getElementById("teamBSub");
+
+            teamASub.innerHTML = "Combined Team value: " + Math.round(sumA) + " SPM";
+            teamBSub.innerHTML = "Combined Team value: " + Math.round(sumB) + " SPM";
+
+            document.getElementById("teamDiffSub").innerHTML = "Initial team diff: " + initialUnbalance + " SPM &nbsp; &nbsp; | &nbsp; &nbsp; Final team diff: " + unbalance + " SPM";
+
+            // Update stats
+            document.getElementById("totaliterations").value = totalIterations;
+            document.getElementById("totalbalanced").value = totalBalanced;
+            document.getElementById("totalunbalanced").value = totalUnbalanced;
+            document.getElementById("avgunbalance").value = avgUnbalance;
+            document.getElementById("highestdiff").value = highestDiff;
+            document.getElementById("totalswaps").value = swapsAbsoluteSum;
+            document.getElementById("avgswaps").value = avgSwaps;
+
+        }
+
+        // Main function
+        function doMagic(){
+
+            console.clear();
+            console.log("Starting operation...");
+
+            let skewSliderValue = document.getElementById("skewSlider").value;
+            console.log("SKEWSLIDERVALUE: " + skewSliderValue);
+
+            groupBias = document.getElementById("groupSlider").value;
+            console.log("GROUPBIASVALUE: " + groupBias);
+
+            maxValueDiff = document.getElementById("maxValueDiff").value;
+
+            // Reset sampleLobby
+            sampleLobby = [];
+
+            // get group settings
+            let numSquads = document.getElementById("numSquads").value;
+            let numTrios = document.getElementById("numTrios").value;
+            let numDuos = document.getElementById("numDuos").value;
+            let numBots = document.getElementById("numBots").value;
+
+            // Create sample player data: Squads, Trios and Duos
+            for (var i = 0; i < numSquads; i++) {
+                if (sampleLobby.reduce((total, entity) => total + entity.players.length, 0) < 60) {
+                    sampleLobby.push({
+                        players: [randomSkill(50,750, skewSliderValue), randomSkill(50,750, skewSliderValue), randomSkill(50,750, skewSliderValue), randomSkill(50,750, skewSliderValue)],
+                        name: "Random Squad " + i
+                    });
+                }
+            }
+
+            for (var i = 0; i < numTrios; i++) {
+                if (sampleLobby.reduce((total, entity) => total + entity.players.length, 0) < 61) {
+                    sampleLobby.push({
+                        players: [randomSkill(50,750, skewSliderValue), randomSkill(50,750, skewSliderValue), randomSkill(50,750, skewSliderValue)],
+                        name: "Random Trio " + i
+                    });
+                }
+            }
+
+            for (var i = 0; i < numDuos; i++) {
+                if (sampleLobby.reduce((total, entity) => total + entity.players.length, 0) < 62) {
+                    sampleLobby.push({
+                        players: [randomSkill(50,750, skewSliderValue), randomSkill(50,750, skewSliderValue)],
+                        name: "Random Duo " + i
+                    });
+                }
+            }
+
+            for (var i = 0; i < numBots; i++) {
+                if (sampleLobby.reduce((total, entity) => total + entity.players.length, 0) < 63) {
+                    sampleLobby.push({
+                        players: [randomSkill(50,100, skewSliderValue)],
+                        name: "Random Bot"  + i
+                    });
+                }
+            }
+
+            // Fill the rest of the 64 slots with solo players
+            while (sampleLobby.reduce((total, entity) => total + entity.players.length, 0) < 64) {
+                let currSkill = randomSkill(50,750, skewSliderValue);
+                let currName = "Player";
+                switch (true) {
+                    case (currSkill < 100):
+                        currName = "Noob Player";
+                        break;
+                    case (currSkill < 250):
+                        currName = "Below Avg Player";
+                        break;
+                    case (currSkill < 400):
+                        currName = "Average Player";
+                        break;
+                    case (currSkill < 550):
+                        currName = "Good Player";
+                        break;
+                    default:
+                        currName = "Alpha Player";
+                        break;
+                }
+                sampleLobby.push({
+                    players: [currSkill],
+                    name: currName
+                });
+            }
+
+            // Run the balancing function
+            balanceTeams(sampleLobby);
+
+            // Update simulation stats
+            totalIterations++;
+            if ((unbalance <= MAX_UNBALANCE) && (unbalance >= MIN_UNBALANCE)){
+                totalBalanced++;
+            } else {
+                totalUnbalanced++;
+            }
+            unbalanceAbsoluteSum += Math.abs(unbalance);
+            avgUnbalance = Math.round((unbalanceAbsoluteSum / totalIterations) * 100) / 100;
+
+            avgSwaps = Math.round((swapsAbsoluteSum / totalIterations) * 100) / 100;
+
+            // Present the output data in a visual way
+            webVisualOutput();
+        }
+
+        function resetStats(){
+            totalIterations = 0;
+            totalBalanced = 0;
+            totalUnbalanced = 0;
+            unbalanceAbsoluteSum = 0;
+            avgUnbalance = 0;
+            swapsAbsoluteSum = 0;
+            avgSwaps = 0;
+            highestDiff = 0;
+
+            document.getElementById("totaliterations").value = totalIterations;
+            document.getElementById("totalbalanced").value = totalBalanced;
+            document.getElementById("totalunbalanced").value = totalUnbalanced;
+            document.getElementById("avgunbalance").value = avgUnbalance;
+            document.getElementById("highestdiff").value = highestDiff;
+            document.getElementById("totalswaps").value = swapsAbsoluteSum;
+            document.getElementById("avgswaps").value = avgSwaps;
+        }
+
+        function doSimulation(){
+            for (var i = 0; i < document.getElementById("numSimulations").value; i++) {
+                setTimeout(function(){
+                    doMagic();
+                }, 50);
+            }
+        }
+
+
+
+        window.onload = function() {
+            actionButton = document.getElementById("actionButton");
+            actionButton.addEventListener("click", doSimulation);
+
+            actionButton3 = document.getElementById("actionButton3");
+            actionButton3.addEventListener("click", resetStats);
+        }
+
+    </script>
+</head>
+<body>
+    <div id="mydiv">
+        <h1>TEAM BALANCER SIMULATION</h1>
+        <br>
+        <div class="slidecontainer">
+            PLAYER SKILL DEVIATION
+            <br>
+            NOOB <input type="range" min="0.4" max="2.4" value="1.4" step="0.1" class="slider" id="skewSlider"> PRO&nbsp;&nbsp;&nbsp;
+        </div>
+        <br>
+        <div class="slidecontainer">
+            SQUAD WEIGHT MULTIPLIER
+            <br>
+            NONE <input type="range" min="0" max="1" value="0.5" step="0.1" class="slider" id="groupSlider"> HIGH&nbsp;
+        </div>
+        <br>
+        NUM. OF SQUADS: <input type="number" id="numSquads" value="2" min="0" max="8">
+        <br>
+        NUM. OF TRIOS: <input type="number" id="numTrios" value="2" min="0" max="8">
+        <br>
+        NUM. OF DUOS: <input type="number" id="numDuos" value="4" min="0" max="8">
+        <br><br>
+        NUM. OF BOTS: <input type="number" id="numBots" value="4" min="0" max="32">
+        <br><br>
+        ----------------------------------------------------------------------------------------------------------------
+        <br><br>
+        MAX. ALLOWED TEAM DIFF: <input type="number" id="maxValueDiff" value="10" min="1" max="100"> SPM
+        <br><br>
+        ----------------------------------------------------------------------------------------------------------------
+        <br><br>
+        <button id="actionButton">PRESS TO SIMULATE</button>
+        <br><br>
+        SIMULATIONS PER PRESS: <input type="number" id="numSimulations" value="1" min="1" max="1000000">
+        <br><br>
+        ----------------------------------------------------------------------------------------------------------------
+        <br><br>
+        Total Iterations-----------<input type="text" id="totaliterations" value="0" disabled><br>
+        <br>
+        Total Balanced-----------<input type="text" id="totalbalanced" value="0" disabled><br>
+        Total Unbalanced--------<input type="text" id="totalunbalanced" value="0" disabled><br>
+        <br>
+        Avg Diff value------------<input type="text" id="avgunbalance" value="0" disabled><br>
+        Highest Diff---------------<input type="text" id="highestdiff" value="0" disabled><br>
+        <br>
+        Total Player swaps------<input type="text" id="totalswaps" value="0" disabled><br>
+        Avg Player swaps-------<input type="text" id="avgswaps" value="0" disabled><br>
+        <br><br>
+        <button id="actionButton3">RESET STATS</button>
+
+
+
+
+        <div id="lobbyContainerTitle">
+            <h2>AVAILABLE PLAYERS IN LOBBY (SPM)</h2>
+        </div>
+        <div id="lobbyContainer">
+            <div id="playerLobby"></div>
+            <div id="playerLobby2"></div>
+            <div id="playerLobby3"></div>
+            <div id="playerLobby4"></div>
+        </div>
+
+        <div id="teamATitle">
+            <h2>TEAM A (SPM)</h2>
+        </div>
+        <div id="teamAContainer">
+            <div id="teamADiv"></div>
+            <div id="teamADiv2"></div>
+        </div>
+        <div id="teamASub"></div>
+
+        <div id="teamBTitle">
+            <h2>TEAM B (SPM)</h2>
+        </div>
+        <div id="teamBContainer">
+            <div id="teamBDiv"></div>
+            <div id="teamBDiv2"></div>
+        </div>
+        <div id="teamBSub"></div>
+
+        <div id="teamDiffSub"></div>
+            
+    </div>
+
+
+</body>
+</html>
+

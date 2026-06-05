@@ -279,6 +279,11 @@
         function sortPlayersBySkill(team){
             // Sort players from a team by their multiplied value (Highest to Lowest)
             team.sort((a, b) => (b.multipliedValue / b.players.length) - (a.multipliedValue / a.players.length));
+            for (var i = 0; i < team.length; i++) {
+                if (team[i].players.length > 1) {
+                    team[i].players.sort((a, b) => (b - a));
+                }
+            }
             //team.sort((a, b) => b.multipliedValue - a.multipliedValue);
         }
 
@@ -338,7 +343,7 @@
             console.log("INITIAL POOL OF PLAYERS");
             console.dir(lobbyEntities, { depth: null });
 
-            // Distribute players using a dynamic Greedy Snake Draft algorithm.
+            // Distribute players using a dynamic Greedy Snake Draft method.
             for (let entity of lobbyEntities) {
                 // Check capacity constraints (Enforce max 32 players per team)
                 const canFitA = (countA + entity.size) <= 32;
@@ -501,10 +506,11 @@
 
                     switch (true) {
                         case (lobbyEntities[i].players[j] < 100):
-                            node.style.backgroundColor = "red";
+                            node.style.backgroundColor = "darkred";
+                            node.style.color = "black";
                             break;
                         case (lobbyEntities[i].players[j] < 250):
-                            node.style.backgroundColor = "orange";
+                            node.style.backgroundColor = "red";
                             node.style.color = "black";
                             break;
                         case (lobbyEntities[i].players[j] < 400):
@@ -556,10 +562,11 @@
 
                     switch (true) {
                         case (teamA[i].players[j] < 100):
-                            node.style.backgroundColor = "red";
+                            node.style.backgroundColor = "darkred";
+                            node.style.color = "black";
                             break;
                         case (teamA[i].players[j] < 250):
-                            node.style.backgroundColor = "orange";
+                            node.style.backgroundColor = "red";
                             node.style.color = "black";
                             break;
                         case (teamA[i].players[j] < 400):
@@ -607,10 +614,11 @@
 
                     switch (true) {
                         case (teamB[i].players[j] < 100):
-                            node.style.backgroundColor = "red";
+                            node.style.backgroundColor = "darkred";
+                            node.style.color = "black";
                             break;
                         case (teamB[i].players[j] < 250):
-                            node.style.backgroundColor = "orange";
+                            node.style.backgroundColor = "red";
                             node.style.color = "black";
                             break;
                         case (teamB[i].players[j] < 400):
@@ -663,7 +671,7 @@
 
         }
 
-        // Main function
+        // Creates a simulated lobby, runs the team balance function, and finally runs another function to update the stuff shown in the screen.
         function doMagic(){
 
             console.clear();
@@ -690,7 +698,7 @@
             for (var i = 0; i < numSquads; i++) {
                 if (sampleLobby.reduce((total, entity) => total + entity.players.length, 0) < 60) {
                     sampleLobby.push({
-                        players: [randomSkill(50,750, skewSliderValue), randomSkill(50,750, skewSliderValue), randomSkill(50,750, skewSliderValue), randomSkill(50,750, skewSliderValue)],
+                        players: [randomSkill(0,999, skewSliderValue), randomSkill(0,999, skewSliderValue), randomSkill(0,999, skewSliderValue), randomSkill(0,999, skewSliderValue)],
                         name: "Random Squad " + i
                     });
                 }
@@ -699,7 +707,7 @@
             for (var i = 0; i < numTrios; i++) {
                 if (sampleLobby.reduce((total, entity) => total + entity.players.length, 0) < 61) {
                     sampleLobby.push({
-                        players: [randomSkill(50,750, skewSliderValue), randomSkill(50,750, skewSliderValue), randomSkill(50,750, skewSliderValue)],
+                        players: [randomSkill(0,999, skewSliderValue), randomSkill(0,999, skewSliderValue), randomSkill(0,999, skewSliderValue)],
                         name: "Random Trio " + i
                     });
                 }
@@ -708,7 +716,7 @@
             for (var i = 0; i < numDuos; i++) {
                 if (sampleLobby.reduce((total, entity) => total + entity.players.length, 0) < 62) {
                     sampleLobby.push({
-                        players: [randomSkill(50,750, skewSliderValue), randomSkill(50,750, skewSliderValue)],
+                        players: [randomSkill(0,999, skewSliderValue), randomSkill(0,999, skewSliderValue)],
                         name: "Random Duo " + i
                     });
                 }
@@ -725,7 +733,7 @@
 
             // Fill the rest of the 64 slots with solo players
             while (sampleLobby.reduce((total, entity) => total + entity.players.length, 0) < 64) {
-                let currSkill = randomSkill(50,750, skewSliderValue);
+                let currSkill = randomSkill(0,999, skewSliderValue);
                 let currName = "Player";
                 switch (true) {
                     case (currSkill < 100):
@@ -815,7 +823,7 @@
         <div class="slidecontainer">
             PLAYER SKILL DEVIATION
             <br>
-            NOOB <input type="range" min="0.4" max="2.4" value="1.4" step="0.1" class="slider" id="skewSlider"> PRO&nbsp;&nbsp;&nbsp;
+            NOOB <input type="range" min="1.0" max="2.6" value="1.8" step="0.1" class="slider" id="skewSlider"> PRO&nbsp;&nbsp;&nbsp;
         </div>
         <br>
         <div class="slidecontainer">

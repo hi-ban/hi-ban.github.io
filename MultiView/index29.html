@@ -128,7 +128,10 @@
 
 <div id="sidebar" style="height: 38px;">
   <button id="toggleBtn">Show/Hide URL Inputs (2.9)</button>
-  <div id="inputs"></div>
+  <div id="inputs">
+    <input id="searchLive" placeholder="Search live streams...">
+    <button onclick="searchAndFill()">Search</button>
+  </div>
 </div>
 
 <div id="videoLayer"></div>
@@ -283,10 +286,6 @@
       overlay.className = "thumbOverlay";
       overlay.onclick = () => setMain(index);
 
-      const label = document.createElement("span");
-      label.textContent = "Loading...";
-      overlay.appendChild(label);
-
       videoLayer.appendChild(iframe);
       videoLayer.appendChild(overlay);
 
@@ -295,7 +294,6 @@
     }
 
     frameObj.iframe.src = toEmbed(url);
-    setTimeout(() => updateYouTubeTitle(frameObj), 1500);
 
     // Mute con delay para asegurar que el reproductor ya está listo
     /*setTimeout(() => {
@@ -314,48 +312,6 @@
     }
 
     renderLayout();
-  }
-
-  // Get Twitch channel name
-  function extractLabelFromURL(url) {
-    try {
-      const u = new URL(url);
-
-      // Twitch channel
-      if (u.hostname.includes("twitch.tv")) {
-        if (u.pathname.length > 1 && !u.pathname.includes("/videos/")) {
-          return u.pathname.slice(1);
-        }
-
-        // Twitch VOD
-        if (u.pathname.includes("/videos/")) {
-          return "VOD " + u.pathname.split("/videos/")[1];
-        }
-      }
-
-      return url;
-    } catch {
-      return url;
-    }
-  }
-
-  // Get Youtube video name
-  function updateYouTubeTitle(frameObj) {
-    try {
-      const doc = frameObj.iframe.contentDocument;
-      if (!doc) {
-        console.log("couldn't get video title");
-        return;
-      }
-
-      const title = doc.title;
-      if (title && title !== "") {
-        console.log("TITLE: " + title);
-        frameObj.overlay.querySelector("span").textContent = title;
-      }
-    } catch (e) {
-      // Cross-origin protection sometimes blocks access
-    }
   }
 
   function setMain(index) {
@@ -422,6 +378,28 @@
         sidebarY += 160;
       }
     });
+  }
+
+  async function searchAndFill() {
+    const query = document.getElementById("searchLive").value.trim();
+    if (!query) return;
+
+    const url =
+      "https://www.youtube.com/results?search_query=" +
+      encodeURIComponent(query) +
+      "&sp=EgJAAQ%3D%3D"; // live only
+
+    const html = await fetch(url).then(r => r.text());
+
+    // Extract video IDs from the HTML
+    const ids = [...html.matchAll(/"videoId":"(.*?)"/g)].map(m => m[1]);
+
+    // Fill your inputs with the first N results
+    const inputs = inputsDiv.querySelectorAll("input[data-index]");
+    for (let i = 0; i < inputs.length && i < ids.length; i++) {
+      inputs[i].value = "https://www.youtube.com/watch?v=" + ids[i];
+      loadVideo(i);
+    }
   }
 </script>
 

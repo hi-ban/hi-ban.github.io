@@ -102,7 +102,7 @@
 <body>
 
 <div id="sidebar">
-  <button id="toggleBtn">Show/Hide URL Inputs</button>
+  <button id="toggleBtn">Show/Hide URL Inputs (1.1)</button>
 
   <div id="inputs"></div>
 
@@ -118,12 +118,15 @@
   const thumbContainer = document.getElementById("thumbContainer");
   const mainContainer = document.getElementById("mainContainer");
 
+  // Store iframes so they are never recreated
+  const videoFrames = Array(20).fill(null);
+
   // Create 20 input fields
   for (let i = 0; i < 20; i++) {
     const input = document.createElement("input");
     input.placeholder = "YouTube URL " + (i + 1);
     input.dataset.index = i;
-    input.addEventListener("change", () => renderViews(null));
+    input.addEventListener("change", () => loadVideo(i));
     inputsDiv.appendChild(input);
   }
 
@@ -132,8 +135,8 @@
     inputsDiv.style.display = inputsDiv.style.display === "none" ? "block" : "none";
   };
 
-  // Convert YouTube URL → embed URL with autoplay
-  function toEmbed(url) {
+  // Convert YouTube URL → embed URL
+  function toEmbed(url, muted) {
     try {
       const u = new URL(url);
       let id = null;
@@ -143,68 +146,86 @@
       if (!id && u.pathname.startsWith("/live/"))
         id = u.pathname.split("/live/")[1].split("/")[0];
 
-      return id
-        ? `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&mute=1`
-        : "";
+      if (!id) return "";
+
+      return `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&mute=${muted ? 1 : 0}`;
     } catch {
       return "";
     }
   }
 
-  // Render all views: one main, rest sidebar
-  // selectedIndex === null → first valid becomes main
-  // selectedIndex === i   → that index becomes main
-  function renderViews(selectedIndex) {
+  // Load or update a video iframe
+  function loadVideo(index) {
+    const url = inputsDiv.querySelector(`input[data-index="${index}"]`).value;
+    if (!url.trim()) return;
+
+    let iframe = videoFrames[index];
+
+    if (!iframe) {
+      iframe = document.createElement("iframe");
+      videoFrames[index] = iframe;
+    }
+
+    // Always muted in sidebar initially
+    iframe.src = toEmbed(url, true);
+
+    renderLayout();
+  }
+
+  // Render layout: one main, rest sidebar
+  function renderLayout(selectedIndex = null) {
     thumbContainer.innerHTML = "";
     mainContainer.innerHTML = "";
 
     const inputs = [...inputsDiv.querySelectorAll("input")];
-    const urls = inputs.map(i => i.value);
 
     let mainSet = false;
 
-    urls.forEach((url, index) => {
-      if (!url.trim()) return;
+    inputs.forEach((input, index) => {
+      const url = input.value.trim();
+      if (!url) return;
 
-      const embed = toEmbed(url);
-      if (!embed) return;
+      const iframe = videoFrames[index];
+      if (!iframe) return;
 
       const wrapper = document.createElement("div");
-      const iframe = document.createElement("iframe");
-      iframe.src = embed;
 
       if (selectedIndex === null) {
-        // First render: first valid becomes main, rest sidebar
+        // First render: first valid goes main
         if (!mainSet) {
           wrapper.className = "mainWrapper";
+          iframe.src = toEmbed(url, false); // unmuted
           wrapper.appendChild(iframe);
           mainContainer.appendChild(wrapper);
           mainSet = true;
         } else {
           wrapper.className = "thumbWrapper";
+          iframe.src = toEmbed(url, true); // muted
           iframe.className = "thumb";
 
           const overlay = document.createElement("div");
           overlay.className = "thumbOverlay";
-          overlay.onclick = () => renderViews(index);
+          overlay.onclick = () => renderLayout(index);
 
           wrapper.appendChild(iframe);
           wrapper.appendChild(overlay);
           thumbContainer.appendChild(wrapper);
         }
       } else {
-        // Re-render: selectedIndex becomes main, others sidebar
+        // Re-render: selectedIndex goes main
         if (index === selectedIndex) {
           wrapper.className = "mainWrapper";
+          iframe.src = toEmbed(url, false); // unmuted
           wrapper.appendChild(iframe);
           mainContainer.appendChild(wrapper);
         } else {
           wrapper.className = "thumbWrapper";
+          iframe.src = toEmbed(url, true); // muted
           iframe.className = "thumb";
 
           const overlay = document.createElement("div");
           overlay.className = "thumbOverlay";
-          overlay.onclick = () => renderViews(index);
+          overlay.onclick = () => renderLayout(index);
 
           wrapper.appendChild(iframe);
           wrapper.appendChild(overlay);
@@ -214,8 +235,8 @@
     });
   }
 
-  // Initial render (no selection yet → first valid goes main)
-  renderViews(null);
+  // Initial render
+  renderLayout(null);
 </script>
 
 </body>

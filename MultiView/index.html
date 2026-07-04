@@ -122,17 +122,10 @@
       const u = new URL(url);
       let id = null;
 
-      if (u.searchParams.get("v")) {
-        id = u.searchParams.get("v");
-      }
-
-      if (!id && u.hostname === "youtu.be") {
-        id = u.pathname.slice(1);
-      }
-
-      if (!id && u.pathname.startsWith("/live/")) {
+      if (u.searchParams.get("v")) id = u.searchParams.get("v");
+      if (!id && u.hostname === "youtu.be") id = u.pathname.slice(1);
+      if (!id && u.pathname.startsWith("/live/"))
         id = u.pathname.split("/live/")[1].split("/")[0];
-      }
 
       return id
         ? `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&mute=1`
@@ -154,7 +147,6 @@
       const embed = toEmbed(url);
       if (!embed) return;
 
-      // Create wrapper + iframe + overlay
       const wrapper = document.createElement("div");
       wrapper.className = "thumbWrapper";
 
@@ -171,48 +163,46 @@
 
       thumbContainer.appendChild(wrapper);
 
-      // Load first video into main player
       if (mainPlayer.src.includes("about:blank")) {
         mainPlayer.src = embed;
       }
     });
   }
 
-  // Swap clicked thumb with main player
+  // Swap clicked thumb with main player (MOVE, not copy)
   function swapToMain(index) {
     const input = inputsDiv.querySelector(`input[data-index="${index}"]`);
     const embed = toEmbed(input.value);
-
     if (!embed) return;
 
-    // Move current main player into sidebar
-    if (mainPlayer.src && !mainPlayer.src.includes("about:blank")) {
+    const wrappers = [...thumbContainer.querySelectorAll(".thumbWrapper")];
+    const wrapperToRemove = wrappers[index];
+    if (wrapperToRemove) wrapperToRemove.remove();
+
+    const oldMain = mainPlayer.src;
+    mainPlayer.src = embed;
+
+    if (oldMain && !oldMain.includes("about:blank")) {
       const wrapper = document.createElement("div");
       wrapper.className = "thumbWrapper";
 
       const oldIframe = document.createElement("iframe");
-      oldIframe.src = mainPlayer.src;
+      oldIframe.src = oldMain;
       oldIframe.className = "thumb";
 
       const overlay = document.createElement("div");
       overlay.className = "thumbOverlay";
       overlay.onclick = () => {
-        const oldUrl = mainPlayer.src;
-        mainPlayer.src = oldIframe.src;
-        oldIframe.src = oldUrl;
+        const idx = [...inputsDiv.querySelectorAll("input")].findIndex(
+          inp => toEmbed(inp.value) === oldMain
+        );
+        swapToMain(idx);
       };
 
       wrapper.appendChild(oldIframe);
       wrapper.appendChild(overlay);
-
       thumbContainer.appendChild(wrapper);
     }
-
-    // Set new main player
-    mainPlayer.src = embed;
-
-    // Refresh sidebar (removes duplicates)
-    updateThumbs();
   }
 </script>
 

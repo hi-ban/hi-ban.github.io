@@ -80,6 +80,22 @@
     color: #eee;
     border: 1px solid #444;
   }
+
+  #mainContainer {
+    width: 100%;
+    height: 100%;
+  }
+
+  .mainWrapper {
+    width: 100%;
+    height: 100%;
+    position: relative;
+  }
+
+  .mainWrapper iframe {
+    width: 100%;
+    height: 100%;
+  }
 </style>
 </head>
 
@@ -94,20 +110,20 @@
 </div>
 
 <div id="main">
-  <iframe id="mainPlayer" width="100%" height="100%" src="" allowfullscreen></iframe>
+  <div id="mainContainer"></div>
 </div>
 
 <script>
   const inputsDiv = document.getElementById("inputs");
   const thumbContainer = document.getElementById("thumbContainer");
-  const mainPlayer = document.getElementById("mainPlayer");
+  const mainContainer = document.getElementById("mainContainer");
 
   // Create 20 input fields
   for (let i = 0; i < 20; i++) {
     const input = document.createElement("input");
     input.placeholder = "YouTube URL " + (i + 1);
     input.dataset.index = i;
-    input.addEventListener("change", updateThumbs);
+    input.addEventListener("change", () => renderViews(null));
     inputsDiv.appendChild(input);
   }
 
@@ -135,11 +151,17 @@
     }
   }
 
-  // Update thumbnails when URLs change
-  function updateThumbs() {
+  // Render all views: one main, rest sidebar
+  // selectedIndex === null → first valid becomes main
+  // selectedIndex === i   → that index becomes main
+  function renderViews(selectedIndex) {
     thumbContainer.innerHTML = "";
+    mainContainer.innerHTML = "";
 
-    const urls = [...inputsDiv.querySelectorAll("input")].map(i => i.value);
+    const inputs = [...inputsDiv.querySelectorAll("input")];
+    const urls = inputs.map(i => i.value);
+
+    let mainSet = false;
 
     urls.forEach((url, index) => {
       if (!url.trim()) return;
@@ -148,62 +170,52 @@
       if (!embed) return;
 
       const wrapper = document.createElement("div");
-      wrapper.className = "thumbWrapper";
-
       const iframe = document.createElement("iframe");
       iframe.src = embed;
-      iframe.className = "thumb";
 
-      const overlay = document.createElement("div");
-      overlay.className = "thumbOverlay";
-      overlay.onclick = () => swapToMain(index);
+      if (selectedIndex === null) {
+        // First render: first valid becomes main, rest sidebar
+        if (!mainSet) {
+          wrapper.className = "mainWrapper";
+          wrapper.appendChild(iframe);
+          mainContainer.appendChild(wrapper);
+          mainSet = true;
+        } else {
+          wrapper.className = "thumbWrapper";
+          iframe.className = "thumb";
 
-      wrapper.appendChild(iframe);
-      wrapper.appendChild(overlay);
+          const overlay = document.createElement("div");
+          overlay.className = "thumbOverlay";
+          overlay.onclick = () => renderViews(index);
 
-      thumbContainer.appendChild(wrapper);
+          wrapper.appendChild(iframe);
+          wrapper.appendChild(overlay);
+          thumbContainer.appendChild(wrapper);
+        }
+      } else {
+        // Re-render: selectedIndex becomes main, others sidebar
+        if (index === selectedIndex) {
+          wrapper.className = "mainWrapper";
+          wrapper.appendChild(iframe);
+          mainContainer.appendChild(wrapper);
+        } else {
+          wrapper.className = "thumbWrapper";
+          iframe.className = "thumb";
 
-      if (mainPlayer.src.includes("about:blank")) {
-        mainPlayer.src = embed;
+          const overlay = document.createElement("div");
+          overlay.className = "thumbOverlay";
+          overlay.onclick = () => renderViews(index);
+
+          wrapper.appendChild(iframe);
+          wrapper.appendChild(overlay);
+          thumbContainer.appendChild(wrapper);
+        }
       }
     });
   }
 
-  // Swap clicked thumb with main player (MOVE, not copy)
-  function swapToMain(index) {
-    const input = inputsDiv.querySelector(`input[data-index="${index}"]`);
-    const embed = toEmbed(input.value);
-    if (!embed) return;
-
-    const wrappers = [...thumbContainer.querySelectorAll(".thumbWrapper")];
-    const wrapperToRemove = wrappers[index];
-    if (wrapperToRemove) wrapperToRemove.remove();
-
-    const oldMain = mainPlayer.src;
-    mainPlayer.src = embed;
-
-    if (oldMain && !oldMain.includes("about:blank")) {
-      const wrapper = document.createElement("div");
-      wrapper.className = "thumbWrapper";
-
-      const oldIframe = document.createElement("iframe");
-      oldIframe.src = oldMain;
-      oldIframe.className = "thumb";
-
-      const overlay = document.createElement("div");
-      overlay.className = "thumbOverlay";
-      overlay.onclick = () => {
-        const idx = [...inputsDiv.querySelectorAll("input")].findIndex(
-          inp => toEmbed(inp.value) === oldMain
-        );
-        swapToMain(idx);
-      };
-
-      wrapper.appendChild(oldIframe);
-      wrapper.appendChild(overlay);
-      thumbContainer.appendChild(wrapper);
-    }
-  }
+  // Initial render (no selection yet → first valid goes main)
+  renderViews(null);
 </script>
 
 </body>

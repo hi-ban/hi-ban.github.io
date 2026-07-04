@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -15,17 +15,20 @@
     overflow: hidden;
   }
 
-  #sidebar {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 260px;
+  /* CONTENEDOR PRINCIPAL */
+  #app {
+    display: flex;
     height: 100%;
+    width: 100%;
+  }
+
+  /* SIDEBAR */
+  #sidebar {
+    width: 260px;
     background: #1a1a1a;
     padding: 10px;
     overflow-y: auto;
     border-right: 2px solid #333;
-    z-index: 200; /* above video layer */
   }
 
   #toggleBtn {
@@ -53,46 +56,78 @@
     border: 1px solid #444;
   }
 
-  #videoLayer {
-    position: absolute;
-    top: 0;
-    left: 0;
+  /* CONTENEDOR DE MINI-VISTAS */
+  #thumbContainer {
     width: 100%;
-    height: 100%;
-    z-index: 100; /* below sidebar, but above body */
   }
 
-  .videoFrame {
-    position: absolute;
+  .thumbWrapper {
+    position: relative;
+    width: 100%;
+    height: 150px;
+    margin-bottom: 10px;
+  }
+
+  .thumbWrapper iframe {
+    width: 100%;
+    height: 100%;
     border: none;
   }
 
   .thumbOverlay {
     position: absolute;
+    inset: 0;
     cursor: pointer;
     background: transparent;
-    z-index: 300; /* above everything for clicks */
+    z-index: 10;
+  }
+
+  /* MAIN VIEW */
+  #main {
+    flex: 1;
+    background: #000;
+    position: relative;
+  }
+
+  .mainWrapper {
+    width: 100%;
+    height: 100%;
+    position: relative;
+  }
+
+  .mainWrapper iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
   }
 </style>
 </head>
 
 <body>
 
-<div id="sidebar">
-  <button id="toggleBtn">Show/Hide URL Inputs (1.3)</button>
-  <div id="inputs"></div>
-</div>
+<div id="app">
 
-<div id="videoLayer"></div>
+  <div id="sidebar">
+    <button id="toggleBtn">Show/Hide URL Inputs (1.5)</button>
+    <div id="inputs"></div>
+    <div id="thumbContainer"></div>
+  </div>
+
+  <div id="main">
+    <div id="mainContainer"></div>
+  </div>
+
+</div>
 
 <script>
   const inputsDiv = document.getElementById("inputs");
-  const videoLayer = document.getElementById("videoLayer");
+  const thumbContainer = document.getElementById("thumbContainer");
+  const mainContainer = document.getElementById("mainContainer");
 
   const videoFrames = Array(20).fill(null);
   let mainIndex = null;
 
-  // Create 20 input fields
+  /* Crear 20 inputs */
   for (let i = 0; i < 20; i++) {
     const input = document.createElement("input");
     input.placeholder = "YouTube URL " + (i + 1);
@@ -101,11 +136,12 @@
     inputsDiv.appendChild(input);
   }
 
-  // Toggle input visibility
+  /* Toggle inputs */
   document.getElementById("toggleBtn").onclick = () => {
     inputsDiv.style.display = inputsDiv.style.display === "none" ? "block" : "none";
   };
 
+  /* Convertir URL → embed */
   function toEmbed(url) {
     try {
       const u = new URL(url);
@@ -116,81 +152,90 @@
       if (!id && u.pathname.startsWith("/live/"))
         id = u.pathname.split("/live/")[1].split("/")[0];
 
-      return id ? `https://www.youtube-nocookie.com/embed/${id}?autoplay=1` : "";
+      return id
+        ? `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&enablejsapi=1`
+        : "";
     } catch {
       return "";
     }
   }
 
+  /* Cargar vídeo */
   function loadVideo(index) {
     const url = inputsDiv.querySelector(`input[data-index="${index}"]`).value.trim();
     if (!url) return;
 
-    let iframe = videoFrames[index];
+    let frameObj = videoFrames[index];
 
-    if (!iframe) {
-      iframe = document.createElement("iframe");
-      iframe.className = "videoFrame";
+    if (!frameObj) {
+      const wrapper = document.createElement("div");
+      wrapper.dataset.index = index;
+
+      const iframe = document.createElement("iframe");
       iframe.allow = "autoplay";
-      videoFrames[index] = iframe;
 
       const overlay = document.createElement("div");
       overlay.className = "thumbOverlay";
       overlay.onclick = () => setMain(index);
-      iframe.overlay = overlay;
 
-      videoLayer.appendChild(iframe);
-      videoLayer.appendChild(overlay);
+      wrapper.appendChild(iframe);
+      wrapper.appendChild(overlay);
+
+      videoFrames[index] = { wrapper, iframe, overlay };
+      frameObj = videoFrames[index];
     }
 
-    iframe.src = toEmbed(url);
+    frameObj.iframe.src = toEmbed(url);
 
     if (mainIndex === null) {
       mainIndex = index;
     }
 
-    renderPositions();
+    renderLayout();
   }
 
+  /* Cambiar vídeo principal */
   function setMain(index) {
     mainIndex = index;
-    renderPositions();
+    renderLayout();
   }
 
-  function renderPositions() {
-    let sidebarY = 60;
+  /* Renderizar layout */
+  function renderLayout() {
+    thumbContainer.innerHTML = "";
+    mainContainer.innerHTML = "";
 
-    videoFrames.forEach((iframe, index) => {
-      if (!iframe) return;
+    videoFrames.forEach((frameObj, index) => {
+      if (!frameObj) return;
 
-      const overlay = iframe.overlay;
+      const { wrapper, iframe, overlay } = frameObj;
+      const url = inputsDiv.querySelector(`input[data-index="${index}"]`).value.trim();
+      if (!url) return;
 
       if (index === mainIndex) {
-        iframe.style.left = "260px";
-        iframe.style.top = "0px";
-        iframe.style.width = "calc(100% - 260px)";
-        iframe.style.height = "100%";
+        wrapper.className = "mainWrapper";
+        mainContainer.appendChild(wrapper);
 
-        overlay.style.left = "260px";
-        overlay.style.top = "0px";
-        overlay.style.width = "calc(100% - 260px)";
-        overlay.style.height = "100%";
+        overlay.style.display = "none";
 
-        iframe.contentWindow.postMessage('{"event":"command","func":"unMute","args":""}', "*");
+        try {
+          iframe.contentWindow.postMessage(
+            '{"event":"command","func":"unMute","args":""}',
+            "*"
+          );
+        } catch (e) {}
       } else {
-        iframe.style.left = "0px";
-        iframe.style.top = sidebarY + "px";
-        iframe.style.width = "260px";
-        iframe.style.height = "150px";
+        wrapper.className = "thumbWrapper";
+        thumbContainer.appendChild(wrapper);
 
-        overlay.style.left = "0px";
-        overlay.style.top = sidebarY + "px";
-        overlay.style.width = "260px";
-        overlay.style.height = "150px";
+        overlay.style.display = "block";
 
-        iframe.contentWindow.postMessage('{"event":"command","func":"mute","args":""}', "*");
-
-        sidebarY += 160;
+        try {
+          iframe.contentWindow.postMessage(
+            '{"event":"command","func":"mute","args":""}',
+            "*"
+          );
+        } catch (e) {}
       }
     });
   }

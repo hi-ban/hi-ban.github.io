@@ -11,49 +11,21 @@
     font-family: Arial, sans-serif;
     background: #111;
     color: #eee;
-    display: flex;
     height: 100vh;
     overflow: hidden;
   }
 
   #sidebar {
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 260px;
+    height: 100%;
     background: #1a1a1a;
     padding: 10px;
     overflow-y: auto;
     border-right: 2px solid #333;
-  }
-
-  #main {
-    flex: 1;
-    background: #000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  iframe {
-    border: none;
-  }
-
-  .thumbWrapper {
-    position: relative;
-    width: 100%;
-    height: 150px;
-    margin-bottom: 10px;
-  }
-
-  .thumb {
-    width: 100%;
-    height: 100%;
-  }
-
-  .thumbOverlay {
-    position: absolute;
-    inset: 0;
-    cursor: pointer;
-    background: transparent;
-    z-index: 10;
+    z-index: 100;
   }
 
   #toggleBtn {
@@ -81,20 +53,26 @@
     border: 1px solid #444;
   }
 
-  #mainContainer {
+  #videoLayer {
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
+    pointer-events: none; /* overlays handle clicks */
   }
 
-  .mainWrapper {
-    width: 100%;
-    height: 100%;
-    position: relative;
+  .videoFrame {
+    position: absolute;
+    pointer-events: auto;
   }
 
-  .mainWrapper iframe {
-    width: 100%;
-    height: 100%;
+  .thumbOverlay {
+    position: absolute;
+    inset: 0;
+    cursor: pointer;
+    background: transparent;
+    z-index: 10;
   }
 </style>
 </head>
@@ -102,24 +80,18 @@
 <body>
 
 <div id="sidebar">
-  <button id="toggleBtn">Show/Hide URL Inputs (1.1)</button>
-
+  <button id="toggleBtn">Show/Hide URL Inputs (1.2)</button>
   <div id="inputs"></div>
-
-  <div id="thumbContainer"></div>
 </div>
 
-<div id="main">
-  <div id="mainContainer"></div>
-</div>
+<div id="videoLayer"></div>
 
 <script>
   const inputsDiv = document.getElementById("inputs");
-  const thumbContainer = document.getElementById("thumbContainer");
-  const mainContainer = document.getElementById("mainContainer");
+  const videoLayer = document.getElementById("videoLayer");
 
-  // Store iframes so they are never recreated
   const videoFrames = Array(20).fill(null);
+  let mainIndex = null;
 
   // Create 20 input fields
   for (let i = 0; i < 20; i++) {
@@ -135,8 +107,7 @@
     inputsDiv.style.display = inputsDiv.style.display === "none" ? "block" : "none";
   };
 
-  // Convert YouTube URL → embed URL
-  function toEmbed(url, muted) {
+  function toEmbed(url) {
     try {
       const u = new URL(url);
       let id = null;
@@ -146,97 +117,84 @@
       if (!id && u.pathname.startsWith("/live/"))
         id = u.pathname.split("/live/")[1].split("/")[0];
 
-      if (!id) return "";
-
-      return `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&mute=${muted ? 1 : 0}`;
+      return id ? `https://www.youtube-nocookie.com/embed/${id}?autoplay=1` : "";
     } catch {
       return "";
     }
   }
 
-  // Load or update a video iframe
   function loadVideo(index) {
-    const url = inputsDiv.querySelector(`input[data-index="${index}"]`).value;
-    if (!url.trim()) return;
+    const url = inputsDiv.querySelector(`input[data-index="${index}"]`).value.trim();
+    if (!url) return;
 
     let iframe = videoFrames[index];
 
     if (!iframe) {
       iframe = document.createElement("iframe");
+      iframe.className = "videoFrame";
+      iframe.allow = "autoplay";
       videoFrames[index] = iframe;
+
+      const overlay = document.createElement("div");
+      overlay.className = "thumbOverlay";
+      overlay.onclick = () => setMain(index);
+      iframe.overlay = overlay;
+
+      videoLayer.appendChild(iframe);
+      videoLayer.appendChild(overlay);
     }
 
-    // Always muted in sidebar initially
-    iframe.src = toEmbed(url, true);
+    iframe.src = toEmbed(url);
 
-    renderLayout();
+    if (mainIndex === null) {
+      mainIndex = index;
+    }
+
+    renderPositions();
   }
 
-  // Render layout: one main, rest sidebar
-  function renderLayout(selectedIndex = null) {
-    thumbContainer.innerHTML = "";
-    mainContainer.innerHTML = "";
+  function setMain(index) {
+    mainIndex = index;
+    renderPositions();
+  }
 
-    const inputs = [...inputsDiv.querySelectorAll("input")];
+  function renderPositions() {
+    let sidebarY = 60;
 
-    let mainSet = false;
-
-    inputs.forEach((input, index) => {
-      const url = input.value.trim();
-      if (!url) return;
-
-      const iframe = videoFrames[index];
+    videoFrames.forEach((iframe, index) => {
       if (!iframe) return;
 
-      const wrapper = document.createElement("div");
+      const overlay = iframe.overlay;
 
-      if (selectedIndex === null) {
-        // First render: first valid goes main
-        if (!mainSet) {
-          wrapper.className = "mainWrapper";
-          iframe.src = toEmbed(url, false); // unmuted
-          wrapper.appendChild(iframe);
-          mainContainer.appendChild(wrapper);
-          mainSet = true;
-        } else {
-          wrapper.className = "thumbWrapper";
-          iframe.src = toEmbed(url, true); // muted
-          iframe.className = "thumb";
+      if (index === mainIndex) {
+        iframe.style.left = "260px";
+        iframe.style.top = "0px";
+        iframe.style.width = "calc(100% - 260px)";
+        iframe.style.height = "100%";
 
-          const overlay = document.createElement("div");
-          overlay.className = "thumbOverlay";
-          overlay.onclick = () => renderLayout(index);
+        overlay.style.left = "260px";
+        overlay.style.top = "0px";
+        overlay.style.width = "calc(100% - 260px)";
+        overlay.style.height = "100%";
 
-          wrapper.appendChild(iframe);
-          wrapper.appendChild(overlay);
-          thumbContainer.appendChild(wrapper);
-        }
+        iframe.contentWindow.postMessage('{"event":"command","func":"unMute","args":""}', "*");
       } else {
-        // Re-render: selectedIndex goes main
-        if (index === selectedIndex) {
-          wrapper.className = "mainWrapper";
-          iframe.src = toEmbed(url, false); // unmuted
-          wrapper.appendChild(iframe);
-          mainContainer.appendChild(wrapper);
-        } else {
-          wrapper.className = "thumbWrapper";
-          iframe.src = toEmbed(url, true); // muted
-          iframe.className = "thumb";
+        iframe.style.left = "0px";
+        iframe.style.top = sidebarY + "px";
+        iframe.style.width = "260px";
+        iframe.style.height = "150px";
 
-          const overlay = document.createElement("div");
-          overlay.className = "thumbOverlay";
-          overlay.onclick = () => renderLayout(index);
+        overlay.style.left = "0px";
+        overlay.style.top = sidebarY + "px";
+        overlay.style.width = "260px";
+        overlay.style.height = "150px";
 
-          wrapper.appendChild(iframe);
-          wrapper.appendChild(overlay);
-          thumbContainer.appendChild(wrapper);
-        }
+        iframe.contentWindow.postMessage('{"event":"command","func":"mute","args":""}', "*");
+
+        sidebarY += 160;
       }
     });
   }
-
-  // Initial render
-  renderLayout(null);
 </script>
 
 </body>

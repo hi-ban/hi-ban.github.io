@@ -117,7 +117,7 @@
 <div id="sidebarBg"></div>
 
 <div id="sidebar" style="height: 38px;">
-  <button id="toggleBtn">Show/Hide URL Inputs (2.1)</button>
+  <button id="toggleBtn">Show/Hide URL Inputs (2.2)</button>
   <div id="inputs"></div>
 </div>
 
@@ -188,6 +188,13 @@
     }
 
     frameObj.iframe.src = toEmbed(url);
+    // MUTE inmediatamente al cargar si no es el main
+    try {
+      frameObj.iframe.contentWindow.postMessage(
+        '{"event":"command","func":"mute","args":""}',
+        "*"
+      );
+    } catch (e) {}
 
     if (mainIndex === null) {
       mainIndex = index;
@@ -211,13 +218,6 @@
       const { iframe, overlay } = frameObj;
       const url = inputsDiv.querySelector(`input[data-index="${index}"]`).value.trim();
       if (!url) return;
-      // Mute
-      try {
-        iframe.contentWindow.postMessage(
-          '{"event":"command","func":"mute","args":""}',
-          "*"
-        );
-      } catch (e) {}
 
       if (index === mainIndex) {
         iframe.className = "mainVideo";

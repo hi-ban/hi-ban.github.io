@@ -15,20 +15,31 @@
     overflow: hidden;
   }
 
-  /* CONTENEDOR PRINCIPAL */
-  #app {
-    display: flex;
-    height: 100%;
-    width: 100%;
-  }
-
-  /* SIDEBAR */
-  #sidebar {
+  /* Sidebar SIEMPRE encima de los vídeos */
+  #sidebarBg {
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 260px;
+    height: 100%;
     background: #1a1a1a;
     padding: 10px;
     overflow-y: auto;
     border-right: 2px solid #333;
+    z-index: 0;
+  }
+
+  #sidebar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 260px;
+    height: 38px;
+    background: #1a1a1a;
+    padding: 10px;
+    overflow: hidden;
+    border-right: 2px solid #333;
+    z-index: 100;
   }
 
   #toggleBtn {
@@ -43,12 +54,12 @@
   }
 
   #inputs {
-    display: none;
+    display: block;
     margin-bottom: 10px;
   }
 
   #inputs input {
-    width: 100%;
+    width: 248px;
     margin-bottom: 5px;
     padding: 5px;
     background: #222;
@@ -56,79 +67,72 @@
     border: 1px solid #444;
   }
 
-  /* CONTENEDOR DE MINI-VISTAS */
-  #thumbContainer {
-    width: 100%;
-  }
-
-  .thumbWrapper {
-    position: relative;
-    width: 100%;
-    height: 150px;
-    margin-bottom: 10px;
-  }
-
-  .thumbWrapper iframe {
+  /* Capa donde viven TODOS los vídeos */
+  #videoLayer {
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
-    border: none;
+    overflow-y: scroll;
+    scrollbar-width: none;
+    overflow-x: visible;
+    z-index: 0; /* vídeos debajo del sidebar */
   }
 
+  /* Vídeos laterales */
+  .videoFrame {
+    position: absolute;
+    border: none;
+    z-index: 200;
+  }
+
+  /* Vídeo principal */
+  .mainVideo {
+    position: fixed;
+    border: none;
+    z-index: 300;
+  }
+
+  /* Overlay lateral (encima del vídeo lateral) */
   .thumbOverlay {
     position: absolute;
-    inset: 0;
     cursor: pointer;
     background: transparent;
-    z-index: 10;
+    z-index: 400;
   }
 
-  /* MAIN VIEW */
-  #main {
-    flex: 1;
-    background: #000;
-    position: relative;
-  }
-
-  .mainWrapper {
-    width: 100%;
-    height: 100%;
-    position: relative;
-  }
-
-  .mainWrapper iframe {
-    width: 100%;
-    height: 100%;
-    border: none;
+  /* Overlay del vídeo principal (DEBE estar detrás) */
+  .mainOverlay {
+    position: absolute;
+    background: transparent;
+    z-index: 250; /* debajo del vídeo principal */
+    pointer-events: none; /* no bloquea controles */
   }
 </style>
 </head>
 
 <body>
 
-<div id="app">
+<div id="sidebarBg"></div>
 
-  <div id="sidebar">
-    <button id="toggleBtn">Show/Hide URL Inputs (1.5)</button>
-    <div id="inputs"></div>
-    <div id="thumbContainer"></div>
-  </div>
-
-  <div id="main">
-    <div id="mainContainer"></div>
-  </div>
-
+<div id="sidebar" style="height: 38px;">
+  <button id="toggleBtn">Show/Hide URL Inputs (2.3)</button>
+  <div id="inputs"></div>
 </div>
+
+<div id="videoLayer"></div>
 
 <script>
   const inputsDiv = document.getElementById("inputs");
-  const thumbContainer = document.getElementById("thumbContainer");
-  const mainContainer = document.getElementById("mainContainer");
+  const sidebarDiv = document.getElementById("sidebar");
+  const videoLayer = document.getElementById("videoLayer");
 
   const videoFrames = Array(20).fill(null);
   let mainIndex = null;
 
-  /* Crear 20 inputs */
-  for (let i = 0; i < 20; i++) {
+  // Crear 20 campos de entrada
+  for (let i = 0; i < 25; i++) {
     const input = document.createElement("input");
     input.placeholder = "YouTube URL " + (i + 1);
     input.dataset.index = i;
@@ -136,12 +140,12 @@
     inputsDiv.appendChild(input);
   }
 
-  /* Toggle inputs */
+  // Mostrar/ocultar inputs
   document.getElementById("toggleBtn").onclick = () => {
-    inputsDiv.style.display = inputsDiv.style.display === "none" ? "block" : "none";
+    sidebarDiv.style.height = sidebarDiv.style.height === "38px" ? "100%" : "38px";
   };
 
-  /* Convertir URL → embed */
+  // URL → embed con JS API
   function toEmbed(url) {
     try {
       const u = new URL(url);
@@ -153,14 +157,14 @@
         id = u.pathname.split("/live/")[1].split("/")[0];
 
       return id
-        ? `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&enablejsapi=1`
+        ? `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&enablejsapi=1&mute=1`
         : "";
     } catch {
       return "";
     }
   }
 
-  /* Cargar vídeo */
+  // Cargar vídeo (solo una vez por iframe)
   function loadVideo(index) {
     const url = inputsDiv.querySelector(`input[data-index="${index}"]`).value.trim();
     if (!url) return;
@@ -168,20 +172,18 @@
     let frameObj = videoFrames[index];
 
     if (!frameObj) {
-      const wrapper = document.createElement("div");
-      wrapper.dataset.index = index;
-
       const iframe = document.createElement("iframe");
       iframe.allow = "autoplay";
+      iframe.className = "videoFrame";
 
       const overlay = document.createElement("div");
       overlay.className = "thumbOverlay";
       overlay.onclick = () => setMain(index);
 
-      wrapper.appendChild(iframe);
-      wrapper.appendChild(overlay);
+      videoLayer.appendChild(iframe);
+      videoLayer.appendChild(overlay);
 
-      videoFrames[index] = { wrapper, iframe, overlay };
+      videoFrames[index] = { iframe, overlay };
       frameObj = videoFrames[index];
     }
 
@@ -194,30 +196,36 @@
     renderLayout();
   }
 
-  /* Cambiar vídeo principal */
   function setMain(index) {
     mainIndex = index;
     renderLayout();
   }
 
-  /* Renderizar layout */
+  // Renderizar posiciones sin recargar vídeos
   function renderLayout() {
-    thumbContainer.innerHTML = "";
-    mainContainer.innerHTML = "";
+    let sidebarY = 60;
 
     videoFrames.forEach((frameObj, index) => {
       if (!frameObj) return;
 
-      const { wrapper, iframe, overlay } = frameObj;
+      const { iframe, overlay } = frameObj;
       const url = inputsDiv.querySelector(`input[data-index="${index}"]`).value.trim();
       if (!url) return;
 
       if (index === mainIndex) {
-        wrapper.className = "mainWrapper";
-        mainContainer.appendChild(wrapper);
+        iframe.className = "mainVideo";
+        iframe.style.left = "282px";
+        iframe.style.top = "0px";
+        iframe.style.width = "calc(100vw - 282px)";
+        iframe.style.height = "100%";
 
-        overlay.style.display = "none";
+        overlay.className = "mainOverlay";
+        overlay.style.left = "282px";
+        overlay.style.top = "0px";
+        overlay.style.width = "calc(100vw - 282px)";
+        overlay.style.height = "100%";
 
+        // Unmute
         try {
           iframe.contentWindow.postMessage(
             '{"event":"command","func":"unMute","args":""}',
@@ -225,17 +233,27 @@
           );
         } catch (e) {}
       } else {
-        wrapper.className = "thumbWrapper";
-        thumbContainer.appendChild(wrapper);
+        iframe.className = "videoFrame";
+        iframe.style.left = "10px";
+        iframe.style.top = sidebarY + "px";
+        iframe.style.width = "260px";
+        iframe.style.height = "150px";
 
-        overlay.style.display = "block";
+        overlay.className = "thumbOverlay";
+        overlay.style.left = "10px";
+        overlay.style.top = sidebarY + "px";
+        overlay.style.width = "260px";
+        overlay.style.height = "150px";
 
+        // Mute
         try {
           iframe.contentWindow.postMessage(
             '{"event":"command","func":"mute","args":""}',
             "*"
           );
         } catch (e) {}
+
+        sidebarY += 160;
       }
     });
   }

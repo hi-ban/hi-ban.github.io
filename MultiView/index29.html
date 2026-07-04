@@ -127,7 +127,7 @@
 <div id="sidebarBg"></div>
 
 <div id="sidebar" style="height: 38px;">
-  <button id="toggleBtn">Show/Hide URL Inputs (2.8)</button>
+  <button id="toggleBtn">Show/Hide URL Inputs (2.9)</button>
   <div id="inputs"></div>
 </div>
 
@@ -343,10 +343,14 @@
   function updateYouTubeTitle(frameObj) {
     try {
       const doc = frameObj.iframe.contentDocument;
-      if (!doc) return;
+      if (!doc) {
+        console.log("couldn't get video title");
+        return;
+      }
 
       const title = doc.title;
       if (title && title !== "") {
+        console.log("TITLE: " + title);
         frameObj.overlay.querySelector("span").textContent = title;
       }
     } catch (e) {

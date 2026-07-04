@@ -117,7 +117,7 @@
 <div id="sidebarBg"></div>
 
 <div id="sidebar" style="height: 38px;">
-  <button id="toggleBtn">Show/Hide URL Inputs (2.0)</button>
+  <button id="toggleBtn">Show/Hide URL Inputs (2.1)</button>
   <div id="inputs"></div>
 </div>
 
@@ -132,7 +132,7 @@
   let mainIndex = null;
 
   // Crear 20 campos de entrada
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 25; i++) {
     const input = document.createElement("input");
     input.placeholder = "YouTube URL " + (i + 1);
     input.dataset.index = i;
@@ -142,9 +142,7 @@
 
   // Mostrar/ocultar inputs
   document.getElementById("toggleBtn").onclick = () => {
-    //inputsDiv.style.display = inputsDiv.style.display === "none" ? "block" : "none";
     sidebarDiv.style.height = sidebarDiv.style.height === "38px" ? "100%" : "38px";
-
   };
 
   // URL → embed con JS API
@@ -213,6 +211,13 @@
       const { iframe, overlay } = frameObj;
       const url = inputsDiv.querySelector(`input[data-index="${index}"]`).value.trim();
       if (!url) return;
+      // Mute
+      try {
+        iframe.contentWindow.postMessage(
+          '{"event":"command","func":"mute","args":""}',
+          "*"
+        );
+      } catch (e) {}
 
       if (index === mainIndex) {
         iframe.className = "mainVideo";

@@ -137,7 +137,7 @@
   const videoFrames = Array(20).fill(null);
   let mainIndex = null;
 
-  // Crear 20 campos de entrada
+  // Crear 25 campos de entrada
   for (let i = 0; i < 25; i++) {
     const input = document.createElement("input");
     input.placeholder = "YouTube URL " + (i + 1);
@@ -207,7 +207,33 @@
   // Cargar vídeo (solo una vez por iframe)
   function loadVideo(index) {
     const url = inputsDiv.querySelector(`input[data-index="${index}"]`).value.trim();
-    if (!url) return;
+    //if (!url) return;
+
+    // If URL is empty → remove video
+    if (!url) {
+      const frameObj = videoFrames[index];
+      if (frameObj) {
+        frameObj.iframe.remove();
+        frameObj.overlay.remove();
+        videoFrames[index] = null;
+      }
+
+      // If the removed video was the main video → auto-select next available
+      if (mainIndex === index) {
+        mainIndex = null;
+
+        // Find the next available video
+        for (let i = 0; i < videoFrames.length; i++) {
+          if (videoFrames[i] !== null) {
+            mainIndex = i;
+            break;
+          }
+        }
+      }
+
+      renderLayout();
+      return;
+    }
 
     let frameObj = videoFrames[index];
 

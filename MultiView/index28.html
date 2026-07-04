@@ -152,24 +152,6 @@
   };
 
   // URL → embed con JS API
-  /*function toEmbed(url) {
-    try {
-      const u = new URL(url);
-      let id = null;
-
-      if (u.searchParams.get("v")) id = u.searchParams.get("v");
-      if (!id && u.hostname === "youtu.be") id = u.pathname.slice(1);
-      if (!id && u.pathname.startsWith("/live/"))
-        id = u.pathname.split("/live/")[1].split("/")[0];
-
-      return id
-        ? `https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1&mute=1`
-        : "";
-    } catch {
-      return "";
-    }
-  }*/
-
   function toEmbed(url) {
     try {
       const u = new URL(url);
@@ -206,13 +188,13 @@
         // Case 1: Live channel → https://www.twitch.tv/<channel>
         if (u.pathname.length > 1 && !u.pathname.includes("/videos/")) {
           const channel = u.pathname.slice(1);
-          return `https://player.twitch.tv/?channel=${channel}&parent=${location.hostname}`;
+          return `https://player.twitch.tv/?channel=${channel}&parent=${location.hostname}&autoplay=true&muted=true`;
         }
 
         // Case 2: VOD → https://www.twitch.tv/videos/<id>
         if (u.pathname.includes("/videos/")) {
           const vodId = u.pathname.split("/videos/")[1];
-          return `https://player.twitch.tv/?video=v${vodId}&parent=${location.hostname}`;
+          return `https://player.twitch.tv/?video=v${vodId}&parent=${location.hostname}&autoplay=true&muted=true`;
         }
       }
 

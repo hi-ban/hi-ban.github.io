@@ -117,7 +117,7 @@
 <div id="sidebarBg"></div>
 
 <div id="sidebar" style="height: 38px;">
-  <button id="toggleBtn">Show/Hide URL Inputs (2.2)</button>
+  <button id="toggleBtn">Show/Hide URL Inputs (2.3)</button>
   <div id="inputs"></div>
 </div>
 
@@ -157,7 +157,7 @@
         id = u.pathname.split("/live/")[1].split("/")[0];
 
       return id
-        ? `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&enablejsapi=1`
+        ? `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&enablejsapi=1&mute=1`
         : "";
     } catch {
       return "";
@@ -188,13 +188,6 @@
     }
 
     frameObj.iframe.src = toEmbed(url);
-    // MUTE inmediatamente al cargar si no es el main
-    try {
-      frameObj.iframe.contentWindow.postMessage(
-        '{"event":"command","func":"mute","args":""}',
-        "*"
-      );
-    } catch (e) {}
 
     if (mainIndex === null) {
       mainIndex = index;

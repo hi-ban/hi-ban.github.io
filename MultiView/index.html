@@ -36,12 +36,24 @@
     border: none;
   }
 
-  .thumb {
+  .thumbWrapper {
+    position: relative;
     width: 100%;
     height: 150px;
     margin-bottom: 10px;
+  }
+
+  .thumb {
+    width: 100%;
+    height: 100%;
+  }
+
+  .thumbOverlay {
+    position: absolute;
+    inset: 0;
     cursor: pointer;
-    background: #000;
+    background: transparent;
+    z-index: 10;
   }
 
   #toggleBtn {
@@ -104,39 +116,27 @@
     inputsDiv.style.display = inputsDiv.style.display === "none" ? "block" : "none";
   };
 
-  // Convert YouTube URL → embed URL
-  /*function toEmbed(url) {
-    try {
-      const id = url.split("v=")[1]?.split("&")[0] ||
-                 url.split("youtu.be/")[1]?.split("?")[0];
-      return id ? `https://www.youtube.com/embed/${id}` : "";
-    } catch {
-      return "";
-    }
-  }*/
-
+  // Convert YouTube URL → embed URL with autoplay
   function toEmbed(url) {
     try {
       const u = new URL(url);
-
       let id = null;
 
-      // watch?v=ID
       if (u.searchParams.get("v")) {
         id = u.searchParams.get("v");
       }
 
-      // youtu.be/ID
       if (!id && u.hostname === "youtu.be") {
         id = u.pathname.slice(1);
       }
 
-      // /live/ID
       if (!id && u.pathname.startsWith("/live/")) {
         id = u.pathname.split("/live/")[1].split("/")[0];
       }
 
-      return id ? `https://www.youtube-nocookie.com/embed/${id}` : "";
+      return id
+        ? `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&mute=1`
+        : "";
     } catch {
       return "";
     }
@@ -154,17 +154,25 @@
       const embed = toEmbed(url);
       if (!embed) return;
 
+      // Create wrapper + iframe + overlay
+      const wrapper = document.createElement("div");
+      wrapper.className = "thumbWrapper";
+
       const iframe = document.createElement("iframe");
       iframe.src = embed;
       iframe.className = "thumb";
-      iframe.dataset.index = index;
 
-      iframe.onclick = () => swapToMain(index);
+      const overlay = document.createElement("div");
+      overlay.className = "thumbOverlay";
+      overlay.onclick = () => swapToMain(index);
 
-      thumbContainer.appendChild(iframe);
+      wrapper.appendChild(iframe);
+      wrapper.appendChild(overlay);
 
-      // If main player is empty, load the first one
-      if (mainPlayer.src === "" || mainPlayer.src.includes("about:blank")) {
+      thumbContainer.appendChild(wrapper);
+
+      // Load first video into main player
+      if (mainPlayer.src.includes("about:blank")) {
         mainPlayer.src = embed;
       }
     });
@@ -178,22 +186,32 @@
     if (!embed) return;
 
     // Move current main player into sidebar
-    if (mainPlayer.src) {
+    if (mainPlayer.src && !mainPlayer.src.includes("about:blank")) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "thumbWrapper";
+
       const oldIframe = document.createElement("iframe");
       oldIframe.src = mainPlayer.src;
       oldIframe.className = "thumb";
-      oldIframe.onclick = () => {
+
+      const overlay = document.createElement("div");
+      overlay.className = "thumbOverlay";
+      overlay.onclick = () => {
         const oldUrl = mainPlayer.src;
         mainPlayer.src = oldIframe.src;
         oldIframe.src = oldUrl;
       };
-      thumbContainer.appendChild(oldIframe);
+
+      wrapper.appendChild(oldIframe);
+      wrapper.appendChild(overlay);
+
+      thumbContainer.appendChild(wrapper);
     }
 
     // Set new main player
     mainPlayer.src = embed;
 
-    // Refresh sidebar (remove duplicates)
+    // Refresh sidebar (removes duplicates)
     updateThumbs();
   }
 </script>

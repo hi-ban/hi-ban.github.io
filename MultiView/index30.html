@@ -228,72 +228,83 @@
 
   // Cargar vídeo (solo una vez por iframe)
   function loadVideo(index) {
-    const url = inputsDiv.querySelector(`input[data-index="${index}"]`).value.trim();
-    //if (!url) return;
+      const url = inputsDiv.querySelector(`input[data-index="${index}"]`).value.trim();
 
-    // If URL is empty → remove video
-    if (!url) {
-      const frameObj = videoFrames[index];
-      if (frameObj) {
-        frameObj.player.destroy();
-        frameObj.overlay.remove();
-        videoFrames[index] = null;
+      // Borrado
+      if (!url) {
+          const frameObj = videoFrames[index];
+          if (frameObj) {
+              // Si hay player, destruirlo
+              if (frameObj.player) {
+                  frameObj.player.destroy();
+              }
+              // Si hay overlay, quitarlo
+              if (frameObj.overlay) {
+                  frameObj.overlay.remove();
+              }
+              videoFrames[index] = null;
+          }
+
+          if (mainIndex === index) {
+              mainIndex = null;
+              for (let i = 0; i < videoFrames.length; i++) {
+                  if (videoFrames[i] !== null) {
+                      mainIndex = i;
+                      break;
+                  }
+              }
+          }
+
+          renderLayout();
+          return;
       }
 
-      // If the removed video was the main video → auto-select next available
-      if (mainIndex === index) {
-        mainIndex = null;
+      // Solo vamos a tratar YouTube aquí
+      const videoId = extractVideoId(url);
+      if (!videoId) {
+          console.warn("URL no reconocida como YouTube:", url);
+          return;
+      }
 
-        // Find the next available video
-        for (let i = 0; i < videoFrames.length; i++) {
-          if (videoFrames[i] !== null) {
-            mainIndex = i;
-            break;
+      let frameObj = videoFrames[index];
+
+      // Crear player solo si no existe
+      if (!frameObj) {
+          const container = document.createElement("div");
+          container.id = "player_" + index;
+          container.className = "videoFrame";
+          videoLayer.appendChild(container);
+
+          const overlay = document.createElement("div");
+          overlay.className = "thumbOverlay";
+          overlay.onclick = () => setMain(index);
+          videoLayer.appendChild(overlay);
+
+          const player = new YT.Player(container.id, {
+              videoId: videoId,
+              playerVars: {
+                  autoplay: 1,
+                  controls: 0,
+                  mute: 1
+              }
+          });
+
+          videoFrames[index] = { player, overlay };
+          frameObj = videoFrames[index];
+      } else {
+          // Ya hay player: cambiar de vídeo
+          if (frameObj.player && typeof frameObj.player.loadVideoById === "function") {
+              frameObj.player.loadVideoById(videoId);
+          } else {
+              console.warn("frameObj.player no es un YT.Player válido en index", index, frameObj);
           }
-        }
+      }
+
+      if (mainIndex === null) {
+          mainIndex = index;
       }
 
       renderLayout();
-      return;
-    }
-
-    let frameObj = videoFrames[index];
-
-    if (!frameObj) {
-      // Crear contenedor para el player
-      const container = document.createElement("div");
-      container.id = "player_" + index;
-      container.className = "videoFrame"; // mantiene tu estilo
-      videoLayer.appendChild(container);
-
-      // Crear overlay igual que antes
-      const overlay = document.createElement("div");
-      overlay.className = "thumbOverlay";
-      overlay.onclick = () => setMain(index);
-      videoLayer.appendChild(overlay);
-
-      // Crear el reproductor oficial
-      const player = new YT.Player(container.id, {
-          videoId: extractVideoId(url),
-          playerVars: {
-              autoplay: 1,
-              controls: 0,
-              mute: 1
-          }
-      });
-
-      // Guardar player + overlay
-      videoFrames[index] = { player, overlay };
-      frameObj = videoFrames[index];
-    }
-
-    frameObj.player.loadVideoById(extractVideoId(url));
-
-    if (mainIndex === null) {
-      mainIndex = index;
-    }
-
-    renderLayout();
   }
 
   function setMain(index) {

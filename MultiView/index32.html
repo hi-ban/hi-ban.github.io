@@ -303,12 +303,10 @@
 
         // Unmute con delay para asegurar que el reproductor ya está listo
         setTimeout(() => {
-          if (mainIndex !== index) {
-            try {
-              console.log("Trying to Unmute video with 1s delay. Index:" + index);
-              iframe.contentWindow.postMessage('{"event":"command","func":"unMute","args":""}', "*");
-            } catch (e) {}
-          }
+          try {
+            console.log("Trying to Unmute video with 1s delay. Index:" + index);
+            iframe.contentWindow.postMessage('{"event":"command","func":"unMute","args":""}', "*");
+          } catch (e) {}
         }, 1000);
 
       } else {

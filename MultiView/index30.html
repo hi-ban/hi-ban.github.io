@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>YouTube Multi‑Viewer</title>
+
+<style>
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #111;
+    color: #eee;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  #sidebarBg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 260px;
+    height: 100%;
+    background: #1a1a1a;
+    padding: 10px;
+    overflow-y: auto;
+    border-right: 2px solid #333;
+    z-index: 0;
+  }
+
+  #sidebar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 260px;
+    height: 38px;
+    background: #1a1a1a;
+    padding: 10px;
+    overflow: hidden;
+    border-right: 2px solid #333;
+    z-index: 100;
+  }
+
+  #toggleBtn {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    background: #444;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+  }
+
+  #toggleBtn:hover {
+    background-color: #666;
+  }
+
+  #inputs {
+    display: block;
+    margin-bottom: 10px;
+  }
+
+  #inputs input {
+    width: 248px;
+    margin-bottom: 5px;
+    padding: 5px;
+    background: #222;
+    color: #eee;
+    border: 1px solid #444;
+  }
+
+  #videoLayer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow-y: scroll;
+    scrollbar-width: none;
+    overflow-x: visible;
+    z-index: 0; /* vídeos debajo del sidebar */
+  }
+
+  .videoFrame { /* Vídeos laterales */
+    position: absolute;
+    border: none;
+    z-index: 200;
+  }
+
+  .mainVideo { /* Vídeo principal */
+    position: fixed;
+    border: none;
+    z-index: 300;
+  }
+
+  .thumbOverlay {
+    position: absolute;
+    cursor: pointer;
+    background: transparent;
+    z-index: 400;
+  }
+
+  .mainOverlay {
+    position: absolute;
+    background: transparent;
+    z-index: 250; /* debajo del vídeo principal */
+    pointer-events: none; /* no bloquea controles */
+  }
+</style>
+</head>
+
+<body>
+
+<div id="sidebarBg"></div>
+
+<div id="sidebar" style="height: 38px;">
+  <button id="toggleBtn">Show/Hide URL Inputs (3.0)</button>
+  <div id="inputs"></div>
+</div>
+
+<div id="videoLayer"></div>
+
+<script src="https://www.youtube.com/iframe_api"></script>
+<script>
+  function onYouTubeIframeAPIReady() { // No hace falta poner nada aquí. Solo debe existir para que la API funcione.
+  }
+
+  const inputsDiv = document.getElementById("inputs");
+  const sidebarDiv = document.getElementById("sidebar");
+  const videoLayer = document.getElementById("videoLayer");
+
+  const videoFrames = Array(20).fill(null);
+  let mainIndex = null;
+
+  // Crear 25 campos de entrada
+  for (let i = 0; i < 25; i++) {
+    const wrapper = document.createElement("div");
+    wrapper.style.display = "flex";
+    wrapper.style.alignItems = "center";
+
+    const input = document.createElement("input");
+    input.placeholder = "YouTube URL " + (i + 1);
+    input.dataset.index = i;
+    input.style.flex = "1";
+    input.addEventListener("change", () => loadVideo(i));
+
+    const clearBtn = document.createElement("button");
+    clearBtn.textContent = "X";
+    clearBtn.style.marginTop = "-5px";
+    clearBtn.style.marginLeft = "0px";
+    clearBtn.style.width = "28px";
+    clearBtn.style.height = "27px";
+    clearBtn.style.cursor = "pointer";
+    clearBtn.style.backgroundColor = "#600";
+    clearBtn.style.color = "#fff";
+    clearBtn.style.border = "1px solid #444";
+    clearBtn.style.borderLeft = "none";
+
+    clearBtn.onclick = () => {
+      input.value = "";
+      loadVideo(i);   // triggers deletion logic
+    };
+
+    clearBtn.onmouseover = () => {
+      clearBtn.style.backgroundColor = "#A00";
+    };
+
+    clearBtn.onmouseout = () => {
+      clearBtn.style.backgroundColor = "#600";
+    };
+
+    wrapper.appendChild(input);
+    wrapper.appendChild(clearBtn);
+    inputsDiv.appendChild(wrapper);
+  }
+
+  // Mostrar/ocultar inputs
+  document.getElementById("toggleBtn").onclick = () => {
+    sidebarDiv.style.height = sidebarDiv.style.height === "38px" ? "100%" : "38px";
+  };
+
+  // URL → embed con JS API
+  function toEmbed(url) {
+    try {
+      const u = new URL(url);
+      let id = null;
+
+      // watch?v=ID
+      if (u.searchParams.get("v")) {
+        id = u.searchParams.get("v");
+        return `https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1&mute=1`;
+      }
+
+      // youtu.be/ID
+      if (u.hostname === "youtu.be") {
+        id = u.pathname.slice(1);
+        return `https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1&mute=1`;
+      }
+
+      // youtube.com/live/ID
+      if (u.pathname.startsWith("/live/")) {
+        id = u.pathname.split("/live/")[1].split("/")[0];
+        return `https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1&mute=1`;
+      }
+
+      // Twitch
+      if (u.hostname.includes("twitch.tv")) {
+
+        // Case 1: Live channel → https://www.twitch.tv/<channel>
+        if (u.pathname.length > 1 && !u.pathname.includes("/videos/")) {
+          const channel = u.pathname.slice(1);
+          return `https://player.twitch.tv/?channel=${channel}&parent=${location.hostname}&autoplay=true&muted=true`;
+        }
+
+        // Case 2: VOD → https://www.twitch.tv/videos/<id>
+        if (u.pathname.includes("/videos/")) {
+          const vodId = u.pathname.split("/videos/")[1];
+          return `https://player.twitch.tv/?video=v${vodId}&parent=${location.hostname}&autoplay=true&muted=true`;
+        }
+      }
+
+      return "";
+    } catch {
+      return "";
+    }
+  }
+
+  // Cargar vídeo (solo una vez por iframe)
+  function loadVideo(index) {
+    const url = inputsDiv.querySelector(`input[data-index="${index}"]`).value.trim();
+    //if (!url) return;
+
+    // If URL is empty → remove video
+    if (!url) {
+      const frameObj = videoFrames[index];
+      if (frameObj) {
+        frameObj.player.destroy();
+        frameObj.overlay.remove();
+        videoFrames[index] = null;
+      }
+
+      // If the removed video was the main video → auto-select next available
+      if (mainIndex === index) {
+        mainIndex = null;
+
+        // Find the next available video
+        for (let i = 0; i < videoFrames.length; i++) {
+          if (videoFrames[i] !== null) {
+            mainIndex = i;
+            break;
+          }
+        }
+      }
+
+      renderLayout();
+      return;
+    }
+
+    let frameObj = videoFrames[index];
+
+    if (!frameObj) {
+      // Crear contenedor para el player
+      const container = document.createElement("div");
+      container.id = "player_" + index;
+      container.className = "videoFrame"; // mantiene tu estilo
+      videoLayer.appendChild(container);
+
+      // Crear overlay igual que antes
+      const overlay = document.createElement("div");
+      overlay.className = "thumbOverlay";
+      overlay.onclick = () => setMain(index);
+      videoLayer.appendChild(overlay);
+
+      // Crear el reproductor oficial
+      const player = new YT.Player(container.id, {
+          videoId: extractVideoId(url),
+          playerVars: {
+              autoplay: 1,
+              controls: 0,
+              mute: 1
+          }
+      });
+
+      // Guardar player + overlay
+      videoFrames[index] = { player, overlay };
+      frameObj = videoFrames[index];
+    }
+
+    frameObj.player.loadVideoById(extractVideoId(url));
+
+    if (mainIndex === null) {
+      mainIndex = index;
+    }
+
+    renderLayout();
+  }
+
+  function setMain(index) {
+    mainIndex = index;
+    renderLayout();
+  }
+
+  // Renderizar posiciones sin recargar vídeos
+  function renderLayout() {
+    let sidebarY = 60;
+
+    videoFrames.forEach((frameObj, index) => {
+      if (!frameObj) return;
+
+      const iframe = frameObj.player.getIframe();
+      const overlay = frameObj.overlay;
+      const url = inputsDiv.querySelector(`input[data-index="${index}"]`).value.trim();
+      if (!url) return;
+
+      if (index === mainIndex) {
+        iframe.className = "mainVideo";
+        iframe.style.left = "282px";
+        iframe.style.top = "0px";
+        iframe.style.width = "calc(100vw - 282px)";
+        iframe.style.height = "100vh";
+
+        overlay.className = "mainOverlay";
+        overlay.style.left = "282px";
+        overlay.style.top = "0px";
+        overlay.style.width = "calc(100vw - 282px)";
+        overlay.style.height = "100%";
+
+        // Unmute (solo YouTube)
+        if (!frameObj.iframe.src.includes("twitch.tv")) {
+          try {
+            frameObj.player.unMute();
+          } catch (e) {}
+        }
+      } else {
+        iframe.className = "videoFrame";
+        iframe.style.left = "10px";
+        iframe.style.top = sidebarY + "px";
+        iframe.style.width = "260px";
+        iframe.style.height = "150px";
+
+        overlay.className = "thumbOverlay";
+        overlay.style.left = "10px";
+        overlay.style.top = sidebarY + "px";
+        overlay.style.width = "260px";
+        overlay.style.height = "150px";
+
+        // Mute (solo YouTube)
+        if (!frameObj.iframe.src.includes("twitch.tv")) {
+          try {
+            frameObj.player.mute();
+          } catch (e) {}
+        }
+
+        sidebarY += 160;
+      }
+    });
+  }
+
+  function extractVideoId(url) {
+    try {
+        const u = new URL(url);
+
+        if (u.searchParams.get("v")) {
+            return u.searchParams.get("v");
+        }
+
+        if (u.hostname === "youtu.be") {
+            return u.pathname.slice(1);
+        }
+
+        if (u.pathname.startsWith("/live/")) {
+            return u.pathname.split("/live/")[1].split("/")[0];
+        }
+
+        return null;
+    } catch {
+        return null;
+    }
+  }
+</script>
+
+</body>
+</html>

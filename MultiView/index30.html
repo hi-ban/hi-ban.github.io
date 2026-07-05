@@ -115,7 +115,7 @@
 <div id="sidebarBg"></div>
 
 <div id="sidebar" style="height: 38px;">
-  <button id="toggleBtn">Show/Hide URL Inputs (3.0)</button>
+  <button id="toggleBtn">Show/Hide URL Inputs (3.1)</button>
   <div id="inputs"></div>
 </div>
 
@@ -239,7 +239,7 @@
               playerVars: {
                   autoplay: 1,
                   controls: 1,
-                  mute: 1
+                  mute: 0
               }
           });
 
@@ -292,9 +292,9 @@
         overlay.style.height = "100%";
 
         // Unmute (solo YouTube)
-        try {
+        /*try {
           frameObj.player.unMute();
-        } catch (e) {}
+        } catch (e) {}*/
       } else {
         iframe.className = "videoFrame";
         iframe.style.left = "10px";
@@ -309,9 +309,9 @@
         overlay.style.height = "150px";
 
         // Mute (solo YouTube)
-        try {
+        /*try {
           frameObj.player.mute();
-        } catch (e) {}
+        } catch (e) {}*/
 
         sidebarY += 160;
       }

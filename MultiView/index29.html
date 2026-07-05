@@ -349,6 +349,8 @@
 
   // Renderizar posiciones sin recargar vídeos
   function renderLayout() {
+    ensureMainIndex();
+
     let sidebarY = 60;
 
     videoFrames.forEach((frameObj, index) => {
@@ -371,14 +373,16 @@
         overlay.style.width = "calc(100vw - 282px)";
         overlay.style.height = "100%";
 
-        // Unmute (solo YouTube)
+        // Unmute (solo YouTube) con pequeño delay
         if (!frameObj.iframe.src.includes("twitch.tv")) {
-          try {
-            iframe.contentWindow.postMessage(
-              '{"event":"command","func":"unMute","args":""}',
-              "*"
-            );
-          } catch (e) {}
+          setTimeout(() => {
+            try {
+              iframe.contentWindow.postMessage(
+                '{"event":"command","func":"unMute","args":""}',
+                "*"
+              );
+            } catch (e) {}
+          }, 500);
         }
       } else {
         iframe.className = "videoFrame";
@@ -394,14 +398,14 @@
         overlay.style.height = "150px";
 
         // Mute (solo YouTube)
-        if (!frameObj.iframe.src.includes("twitch.tv")) {
+        /*if (!frameObj.iframe.src.includes("twitch.tv")) {
           try {
             iframe.contentWindow.postMessage(
               '{"event":"command","func":"mute","args":""}',
               "*"
             );
           } catch (e) {}
-        }
+        }*/
 
         sidebarY += 160;
       }

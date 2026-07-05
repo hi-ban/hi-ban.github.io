@@ -216,7 +216,7 @@
     renderLayout();
   }
 
-  // Cargar vídeo (solo una vez por iframe)
+  // Load dummy video (not visible or audible, a dirty workaround to prevent the mute bug)
   function loadDummyVideo(index) {
     const url = inputsDiv.querySelector(`input[data-index="${index}"]`).value.trim();
 
@@ -226,6 +226,7 @@
       const iframe = document.createElement("iframe");
       iframe.allow = "autoplay; encrypted-media";
       iframe.className = "videoFrame";
+      iframe.style.display = "none";
 
       const overlay = document.createElement("div");
       overlay.className = "thumbOverlay";
@@ -249,7 +250,7 @@
 
   // Renderizar posiciones sin recargar vídeos
   function renderLayout() {
-    let sidebarY = 60;
+    let sidebarY = -1000;
 
     videoFrames.forEach((frameObj, index) => {
       if (!frameObj) return;
@@ -278,6 +279,17 @@
           iframe.contentWindow.postMessage('{"event":"command","func":"unMute","args":""}', "*");
           //iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', "*");
         } catch (e) {}
+
+        // Unmute con delay para asegurar que el reproductor ya está listo
+        setTimeout(() => {
+          if (mainIndex !== index) {
+            try {
+              console.log("Trying to Unmute video with 1s delay. Index:" + index);
+              iframe.contentWindow.postMessage('{"event":"command","func":"unMute","args":""}', "*");
+            } catch (e) {}
+          }
+        }, 1000);
+
       } else {
         iframe.className = "videoFrame";
         iframe.style.left = "10px";
@@ -299,7 +311,8 @@
           //iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', "*");
         } catch (e) {}
 
-        sidebarY += 160;
+        //sidebarY += 160;
+        sidebarY = (index * 160) - 100;
       }
     });
   }

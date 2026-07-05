@@ -160,8 +160,13 @@
   }
 
   // Cargar vídeo (solo una vez por iframe)
-  function loadVideo(index) {
-    const url = inputsDiv.querySelector(`input[data-index="${index}"]`).value.trim();
+  function loadVideo(index = "", videoUrl = "") {
+    let url = "";
+    if (index != ""){
+      url = inputsDiv.querySelector(`input[data-index="${index}"]`).value.trim();
+    } else if (videoUrl != ""){
+      url = videoUrl;
+    }
 
     // If URL is empty → remove video
     if (!url) {
@@ -248,9 +253,9 @@
         // Unmute (solo YouTube)
         try {
           console.log("Trying to Unmute video. Index:" + index);
-          iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', "*");
+          //iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', "*");
           iframe.contentWindow.postMessage('{"event":"command","func":"unMute","args":""}', "*");
-          iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', "*");
+          //iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', "*");
         } catch (e) {}
       } else {
         iframe.className = "videoFrame";
@@ -268,9 +273,9 @@
         // Mute (solo YouTube)
         try {
           console.log("Trying to Mute video. Index:" + index);
-          iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', "*");
+          //iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', "*");
           iframe.contentWindow.postMessage('{"event":"command","func":"mute","args":""}', "*");
-          iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', "*");
+          //iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', "*");
         } catch (e) {}
 
         sidebarY += 160;
@@ -326,6 +331,8 @@
     document.getElementById("toggleBtn").onclick = () => {
       sidebarDiv.style.height = sidebarDiv.style.height === "38px" ? "100%" : "38px";
     };
+
+    loadVideo( , "https://www.youtube.com/watch?v=dQw4w9WgXcQ"); // Load a dummy video to prevent the mute bug
 
     // === LOGGER GLOBAL PARA YOUTUBE JS API ===
     window.addEventListener("message", (event) => {

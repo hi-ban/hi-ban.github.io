@@ -127,7 +127,7 @@
 <div id="sidebarBg"></div>
 
 <div id="sidebar" style="height: 38px;">
-  <button id="toggleBtn">Show/Hide URL Inputs (2.8)</button>
+  <button id="toggleBtn">Show/Hide URL Inputs (2.9)</button>
   <div id="inputs"></div>
 </div>
 
@@ -161,6 +161,10 @@
       data = JSON.parse(event.data);
     } catch {
       return;
+    }
+
+    if (data.event === "onReady") {
+      handlePlayerReady(event.source);
     }
 
     if (data.event === "onStateChange") {
@@ -368,14 +372,14 @@
         overlay.style.height = "100%";
 
         // Unmute (solo YouTube)
-        if (!frameObj.iframe.src.includes("twitch.tv")) {
+        /*if (!frameObj.iframe.src.includes("twitch.tv")) {
           try {
             iframe.contentWindow.postMessage(
               '{"event":"command","func":"unMute","args":""}',
               "*"
             );
           } catch (e) {}
-        }
+        }*/
       } else {
         iframe.className = "videoFrame";
         iframe.style.left = "10px";
@@ -390,18 +394,54 @@
         overlay.style.height = "150px";
 
         // Mute (solo YouTube)
-        if (!frameObj.iframe.src.includes("twitch.tv")) {
+        /*if (!frameObj.iframe.src.includes("twitch.tv")) {
           try {
             iframe.contentWindow.postMessage(
               '{"event":"command","func":"mute","args":""}',
               "*"
             );
           } catch (e) {}
-        }
+        }*/
 
         sidebarY += 160;
       }
     });
+  }
+
+  function handlePlayerReady(sourceWindow) {
+    // Find which iframe sent the message
+    let index = null;
+
+    for (let i = 0; i < videoFrames.length; i++) {
+      const frameObj = videoFrames[i];
+      if (!frameObj) continue;
+
+      if (frameObj.iframe.contentWindow === sourceWindow) {
+        index = i;
+        break;
+      }
+    }
+
+    if (index === null) return;
+
+    // Now the player is ready → apply correct audio state
+    if (index === mainIndex) {
+      // main → unmute
+      try {
+        frameObj.iframe.contentWindow.postMessage(
+          '{"event":"command","func":"unMute","args":""}',
+          "*"
+        );
+      } catch (e) {}
+    } else {
+      // side → mute
+      try {
+        frameObj.iframe.contentWindow.postMessage(
+          '{"event":"command","func":"mute","args":""}',
+          "*"
+        );
+      } catch (e) {}
+    }
   }
 
   function handlePlayerState(sourceWindow, state) {

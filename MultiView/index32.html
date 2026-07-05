@@ -248,7 +248,9 @@
         // Unmute (solo YouTube)
         try {
           console.log("Trying to Unmute video. Index:" + index);
+          iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', "*");
           iframe.contentWindow.postMessage('{"event":"command","func":"unMute","args":""}', "*");
+          iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', "*");
         } catch (e) {}
       } else {
         iframe.className = "videoFrame";
@@ -266,7 +268,9 @@
         // Mute (solo YouTube)
         try {
           console.log("Trying to Mute video. Index:" + index);
+          iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', "*");
           iframe.contentWindow.postMessage('{"event":"command","func":"mute","args":""}', "*");
+          iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', "*");
         } catch (e) {}
 
         sidebarY += 160;

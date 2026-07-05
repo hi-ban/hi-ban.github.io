@@ -126,7 +126,7 @@
   const sidebarDiv = document.getElementById("sidebar");
   const videoLayer = document.getElementById("videoLayer");
 
-  const videoFrames = Array(20).fill(null);
+  const videoFrames = Array(26).fill(null);
   let mainIndex = null;
 
   // URL → embed con JS API
@@ -160,13 +160,8 @@
   }
 
   // Cargar vídeo (solo una vez por iframe)
-  function loadVideo(index = "", videoUrl = "") {
-    let url = "";
-    if (index != ""){
-      url = inputsDiv.querySelector(`input[data-index="${index}"]`).value.trim();
-    } else if (videoUrl != ""){
-      url = videoUrl;
-    }
+  function loadVideo(index) {
+    const url = inputsDiv.querySelector(`input[data-index="${index}"]`).value.trim();
 
     // If URL is empty → remove video
     if (!url) {
@@ -217,6 +212,32 @@
     if (mainIndex === null) {
       mainIndex = index;
     }
+
+    renderLayout();
+  }
+
+  // Cargar vídeo (solo una vez por iframe)
+  function loadDummyVideo(index) {
+    const url = inputsDiv.querySelector(`input[data-index="${index}"]`).value.trim();
+
+    let frameObj = videoFrames[index];
+
+    if (!frameObj) {
+      const iframe = document.createElement("iframe");
+      iframe.allow = "autoplay; encrypted-media";
+      iframe.className = "videoFrame";
+
+      const overlay = document.createElement("div");
+      overlay.className = "thumbOverlay";
+
+      videoLayer.appendChild(iframe);
+      videoLayer.appendChild(overlay);
+
+      videoFrames[index] = { iframe, overlay };
+      frameObj = videoFrames[index];
+    }
+
+    frameObj.iframe.src = toEmbed(url);
 
     renderLayout();
   }
@@ -285,17 +306,26 @@
 
   window.onload = function() {
 
-    // Crear 25 campos de entrada
-    for (let i = 0; i < 25; i++) {
+    // Create 26 input fields, the first one is hidden and populated with a fixed URL of a dummy video
+    for (let i = 0; i < 26; i++) {
       const wrapper = document.createElement("div");
-      wrapper.style.display = "flex";
+      if (i == 0) {
+        wrapper.style.display = "none";
+      } else {
+        wrapper.style.display = "flex";
+      }
       wrapper.style.alignItems = "center";
 
       const input = document.createElement("input");
-      input.placeholder = "YouTube URL " + (i + 1);
+      input.placeholder = "YouTube URL " + (i);
       input.dataset.index = i;
       input.style.flex = "1";
-      input.addEventListener("change", () => loadVideo(i));
+
+      if (i == 0) {
+        input.value = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"; //Dummy video to load
+      } else {
+        input.addEventListener("change", () => loadVideo(i));
+      }
 
       const clearBtn = document.createElement("button");
       clearBtn.textContent = "X";
@@ -332,7 +362,7 @@
       sidebarDiv.style.height = sidebarDiv.style.height === "38px" ? "100%" : "38px";
     };
 
-    loadVideo( undefined, "https://www.youtube.com/watch?v=dQw4w9WgXcQ"); // Load a dummy video to prevent the mute bug
+    loadDummyVideo(0); // Load a dummy video to prevent the mute bug
 
     // === LOGGER GLOBAL PARA YOUTUBE JS API ===
     window.addEventListener("message", (event) => {

@@ -127,25 +127,13 @@
 <div id="sidebarBg"></div>
 
 <div id="sidebar" style="height: 38px;">
-  <button id="toggleBtn">Show/Hide URL Inputs (2.9)</button>
+  <button id="toggleBtn">Show/Hide URL Inputs (2.8)</button>
   <div id="inputs"></div>
 </div>
 
 <div id="videoLayer"></div>
 
 <script>
-  const dummy = document.createElement("iframe");
-  dummy.src =
-    `https://www.youtube.com/embed/dQw4w9WgXcQ?enablejsapi=1&mute=1&origin=${location.origin}`; //Necessary Rickroll
-  dummy.style.width = "0";
-  dummy.style.height = "0";
-  dummy.style.opacity = "0";
-  dummy.style.pointerEvents = "none";
-  dummy.style.position = "absolute";
-  dummy.style.left = "-9999px";
-  dummy.style.top = "-9999px";
-  document.body.appendChild(dummy);
-
   const inputsDiv = document.getElementById("inputs");
   const sidebarDiv = document.getElementById("sidebar");
   const videoLayer = document.getElementById("videoLayer");
@@ -161,10 +149,6 @@
       data = JSON.parse(event.data);
     } catch {
       return;
-    }
-
-    if (data.event === "onReady") {
-      handlePlayerReady(event.source);
     }
 
     if (data.event === "onStateChange") {
@@ -273,7 +257,7 @@
   }
 
   // Cargar vídeo (solo una vez por iframe)
-  function loadVideo(index) {
+  /*function loadVideo(index) {
     const url = inputsDiv.querySelector(`input[data-index="${index}"]`).value.trim();
     //if (!url) return;
 
@@ -323,20 +307,111 @@
 
     frameObj.iframe.src = toEmbed(url);
 
-    // Mute con delay para asegurar que el reproductor ya está listo
-    /*setTimeout(() => {
-      if (mainIndex !== index) {
-        try {
-          frameObj.iframe.contentWindow.postMessage(
-            '{"event":"command","func":"mute","args":""}',
-            "*"
-          );
-        } catch (e) {}
-      }
-    }, 500);*/
-
     if (mainIndex === null) {
       mainIndex = index;
+    }
+
+    renderLayout();
+  }*/
+
+  function loadVideo(index) {
+    const url = inputsDiv.querySelector(`input[data-index="${index}"]`).value.trim();
+
+    // If URL is empty → remove video
+    if (!url) {
+
+        // ⭐ Caso especial: si se borra el primer vídeo (index 0)
+        if (index === 0) {
+
+            // Buscar otro vídeo válido para reemplazar el iframe 0
+            let replacement = null;
+            for (let i = 1; i < videoFrames.length; i++) {
+                if (videoFrames[i] !== null) {
+                    replacement = i;
+                    break;
+                }
+            }
+
+            if (replacement !== null) {
+                // Obtener el URL del vídeo replacement
+                const repUrl = inputsDiv.querySelector(`input[data-index="${replacement}"]`).value.trim();
+
+                // Reasignar el iframe 0 al vídeo replacement
+                videoFrames[0].iframe.src = toEmbed(repUrl);
+
+                // Eliminar el iframe replacement
+                videoFrames[replacement].iframe.remove();
+                videoFrames[replacement].overlay.remove();
+                videoFrames[replacement] = null;
+
+                // Vaciar el input del replacement
+                inputsDiv.querySelector(`input[data-index="${replacement}"]`).value = "";
+
+                // Si el replacement era el main, ahora el main es 0
+                if (mainIndex === replacement) {
+                    mainIndex = 0;
+                }
+
+            } else {
+                // ⭐ No hay replacement → NO dejar iframe 0 sin vídeo válido
+                // Asignar un vídeo válido "dummy" para evitar el bug
+                videoFrames[0].iframe.src = "https://www.youtube.com/embed/dQw4w9WgXcQ";
+
+                // Mantener mainIndex en 0
+                mainIndex = 0;
+            }
+
+            renderLayout();
+            return;
+        }
+
+        // ⭐ Borrado normal para otros índices
+        const frameObj = videoFrames[index];
+        if (frameObj) {
+            frameObj.iframe.remove();
+            frameObj.overlay.remove();
+            videoFrames[index] = null;
+        }
+
+        // Si el borrado afecta al main → elegir otro
+        if (mainIndex === index) {
+            mainIndex = null;
+
+            for (let i = 0; i < videoFrames.length; i++) {
+                if (videoFrames[i] !== null) {
+                    mainIndex = i;
+                    break;
+                }
+            }
+        }
+
+        renderLayout();
+        return;
+    }
+
+    // ⭐ Cargar vídeo normalmente
+    let frameObj = videoFrames[index];
+
+    if (!frameObj) {
+        const iframe = document.createElement("iframe");
+        iframe.allow = "autoplay";
+        iframe.className = "videoFrame";
+
+        const overlay = document.createElement("div");
+        overlay.className = "thumbOverlay";
+        overlay.onclick = () => setMain(index);
+
+        videoLayer.appendChild(iframe);
+        videoLayer.appendChild(overlay);
+
+        videoFrames[index] = { iframe, overlay };
+        frameObj = videoFrames[index];
+    }
+
+    frameObj.iframe.src = toEmbed(url);
+
+    if (mainIndex === null) {
+        mainIndex = index;
     }
 
     renderLayout();
@@ -372,14 +447,14 @@
         overlay.style.height = "100%";
 
         // Unmute (solo YouTube)
-        /*if (!frameObj.iframe.src.includes("twitch.tv")) {
+        if (!frameObj.iframe.src.includes("twitch.tv")) {
           try {
             iframe.contentWindow.postMessage(
               '{"event":"command","func":"unMute","args":""}',
               "*"
             );
           } catch (e) {}
-        }*/
+        }
       } else {
         iframe.className = "videoFrame";
         iframe.style.left = "10px";
@@ -394,54 +469,18 @@
         overlay.style.height = "150px";
 
         // Mute (solo YouTube)
-        /*if (!frameObj.iframe.src.includes("twitch.tv")) {
+        if (!frameObj.iframe.src.includes("twitch.tv")) {
           try {
             iframe.contentWindow.postMessage(
               '{"event":"command","func":"mute","args":""}',
               "*"
             );
           } catch (e) {}
-        }*/
+        }
 
         sidebarY += 160;
       }
     });
-  }
-
-  function handlePlayerReady(sourceWindow) {
-    // Find which iframe sent the message
-    let index = null;
-
-    for (let i = 0; i < videoFrames.length; i++) {
-      const frameObj = videoFrames[i];
-      if (!frameObj) continue;
-
-      if (frameObj.iframe.contentWindow === sourceWindow) {
-        index = i;
-        break;
-      }
-    }
-
-    if (index === null) return;
-
-    // Now the player is ready → apply correct audio state
-    if (index === mainIndex) {
-      // main → unmute
-      try {
-        frameObj.iframe.contentWindow.postMessage(
-          '{"event":"command","func":"unMute","args":""}',
-          "*"
-        );
-      } catch (e) {}
-    } else {
-      // side → mute
-      try {
-        frameObj.iframe.contentWindow.postMessage(
-          '{"event":"command","func":"mute","args":""}',
-          "*"
-        );
-      } catch (e) {}
-    }
   }
 
   function handlePlayerState(sourceWindow, state) {

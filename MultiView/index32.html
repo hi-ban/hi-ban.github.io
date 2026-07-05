@@ -250,7 +250,7 @@
 
   // Renderizar posiciones sin recargar vídeos
   function renderLayout() {
-    let sidebarY = -1000;
+    let sidebarY = 60;
 
     videoFrames.forEach((frameObj, index) => {
       if (!frameObj) return;
@@ -259,7 +259,28 @@
       const url = inputsDiv.querySelector(`input[data-index="${index}"]`).value.trim();
       if (!url) return;
 
-      if (index === mainIndex) {
+      if (index == 0) { // Dummy video, move it out of the view
+        iframe.className = "videoFrame";
+        iframe.style.left = "999px";
+        iframe.style.top = "0px";
+        iframe.style.width = "260px";
+        iframe.style.height = "150px";
+
+        overlay.className = "thumbOverlay";
+        overlay.style.left = "999px";
+        overlay.style.top = "0px";
+        overlay.style.width = "260px";
+        overlay.style.height = "150px";
+
+        // Mute (solo YouTube)
+        try {
+          console.log("Trying to Mute video. Index:" + index);
+          //iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', "*");
+          iframe.contentWindow.postMessage('{"event":"command","func":"mute","args":""}', "*");
+          //iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', "*");
+        } catch (e) {}
+
+      } else if (index === mainIndex) {
         iframe.className = "mainVideo";
         iframe.style.left = "282px";
         iframe.style.top = "0px";
@@ -311,8 +332,7 @@
           //iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', "*");
         } catch (e) {}
 
-        //sidebarY += 160;
-        sidebarY = (index * 160) - 100;
+        sidebarY += 160;
       }
     });
   }

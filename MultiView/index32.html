@@ -193,7 +193,7 @@
 
     if (!frameObj) {
       const iframe = document.createElement("iframe");
-      iframe.allow = "autoplay";
+      iframe.allow = "autoplay; encrypted-media";
       iframe.className = "videoFrame";
 
       const overlay = document.createElement("div");
@@ -328,7 +328,7 @@
 
       // Filtrar mensajes que no vienen de YouTube
       if (!event.data || typeof event.data !== "string") return;
-      if (!event.origin.includes("youtube.com")) return;
+      if (!event.origin.includes("youtube")) return;
 
       let msg;
       try {

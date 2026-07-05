@@ -180,52 +180,6 @@
     sidebarDiv.style.height = sidebarDiv.style.height === "38px" ? "100%" : "38px";
   };
 
-  // URL → embed con JS API
-  function toEmbed(url) {
-    try {
-      const u = new URL(url);
-      let id = null;
-
-      // watch?v=ID
-      if (u.searchParams.get("v")) {
-        id = u.searchParams.get("v");
-        return `https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1&mute=1`;
-      }
-
-      // youtu.be/ID
-      if (u.hostname === "youtu.be") {
-        id = u.pathname.slice(1);
-        return `https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1&mute=1`;
-      }
-
-      // youtube.com/live/ID
-      if (u.pathname.startsWith("/live/")) {
-        id = u.pathname.split("/live/")[1].split("/")[0];
-        return `https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1&mute=1`;
-      }
-
-      // Twitch
-      if (u.hostname.includes("twitch.tv")) {
-
-        // Case 1: Live channel → https://www.twitch.tv/<channel>
-        if (u.pathname.length > 1 && !u.pathname.includes("/videos/")) {
-          const channel = u.pathname.slice(1);
-          return `https://player.twitch.tv/?channel=${channel}&parent=${location.hostname}&autoplay=true&muted=true`;
-        }
-
-        // Case 2: VOD → https://www.twitch.tv/videos/<id>
-        if (u.pathname.includes("/videos/")) {
-          const vodId = u.pathname.split("/videos/")[1];
-          return `https://player.twitch.tv/?video=v${vodId}&parent=${location.hostname}&autoplay=true&muted=true`;
-        }
-      }
-
-      return "";
-    } catch {
-      return "";
-    }
-  }
-
   // Cargar vídeo (solo una vez por iframe)
   function loadVideo(index) {
       const url = inputsDiv.querySelector(`input[data-index="${index}"]`).value.trim();
@@ -338,11 +292,9 @@
         overlay.style.height = "100%";
 
         // Unmute (solo YouTube)
-        if (!frameObj.iframe.src.includes("twitch.tv")) {
-          try {
-            frameObj.player.unMute();
-          } catch (e) {}
-        }
+        try {
+          frameObj.player.unMute();
+        } catch (e) {}
       } else {
         iframe.className = "videoFrame";
         iframe.style.left = "10px";
@@ -357,11 +309,9 @@
         overlay.style.height = "150px";
 
         // Mute (solo YouTube)
-        if (!frameObj.iframe.src.includes("twitch.tv")) {
-          try {
-            frameObj.player.mute();
-          } catch (e) {}
-        }
+        try {
+          frameObj.player.mute();
+        } catch (e) {}
 
         sidebarY += 160;
       }

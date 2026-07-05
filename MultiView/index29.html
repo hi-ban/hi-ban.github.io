@@ -127,13 +127,25 @@
 <div id="sidebarBg"></div>
 
 <div id="sidebar" style="height: 38px;">
-  <button id="toggleBtn">Show/Hide URL Inputs (2.9)</button>
+  <button id="toggleBtn">Show/Hide URL Inputs (2.8)</button>
   <div id="inputs"></div>
 </div>
 
 <div id="videoLayer"></div>
 
 <script>
+  const dummy = document.createElement("iframe");
+  dummy.src =
+    `https://www.youtube.com/embed/dQw4w9WgXcQ?enablejsapi=1&mute=1&origin=${location.origin}`; //Necessary Rickroll
+  dummy.style.width = "0";
+  dummy.style.height = "0";
+  dummy.style.opacity = "0";
+  dummy.style.pointerEvents = "none";
+  dummy.style.position = "absolute";
+  dummy.style.left = "-9999px";
+  dummy.style.top = "-9999px";
+  document.body.appendChild(dummy);
+
   const inputsDiv = document.getElementById("inputs");
   const sidebarDiv = document.getElementById("sidebar");
   const videoLayer = document.getElementById("videoLayer");
@@ -283,7 +295,6 @@
         }
       }
 
-      ensureMainIndex();
       renderLayout();
       return;
     }
@@ -324,33 +335,16 @@
       mainIndex = index;
     }
 
-    ensureMainIndex();
     renderLayout();
   }
 
   function setMain(index) {
     mainIndex = index;
-    ensureMainIndex();
     renderLayout();
-  }
-
-  function ensureMainIndex() {
-    if (mainIndex !== null && videoFrames[mainIndex] !== null) return;
-
-    for (let i = 0; i < videoFrames.length; i++) {
-      if (videoFrames[i] !== null) {
-        mainIndex = i;
-        return;
-      }
-    }
-
-    mainIndex = null;
   }
 
   // Renderizar posiciones sin recargar vídeos
   function renderLayout() {
-    ensureMainIndex();
-
     let sidebarY = 60;
 
     videoFrames.forEach((frameObj, index) => {
@@ -373,16 +367,14 @@
         overlay.style.width = "calc(100vw - 282px)";
         overlay.style.height = "100%";
 
-        // Unmute (solo YouTube) con pequeño delay
+        // Unmute (solo YouTube)
         if (!frameObj.iframe.src.includes("twitch.tv")) {
-          setTimeout(() => {
-            try {
-              iframe.contentWindow.postMessage(
-                '{"event":"command","func":"unMute","args":""}',
-                "*"
-              );
-            } catch (e) {}
-          }, 500);
+          try {
+            iframe.contentWindow.postMessage(
+              '{"event":"command","func":"unMute","args":""}',
+              "*"
+            );
+          } catch (e) {}
         }
       } else {
         iframe.className = "videoFrame";
@@ -398,14 +390,14 @@
         overlay.style.height = "150px";
 
         // Mute (solo YouTube)
-        /*if (!frameObj.iframe.src.includes("twitch.tv")) {
+        if (!frameObj.iframe.src.includes("twitch.tv")) {
           try {
             iframe.contentWindow.postMessage(
               '{"event":"command","func":"mute","args":""}',
               "*"
             );
           } catch (e) {}
-        }*/
+        }
 
         sidebarY += 160;
       }

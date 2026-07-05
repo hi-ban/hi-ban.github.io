@@ -115,7 +115,7 @@
 <div id="sidebarBg"></div>
 
 <div id="sidebar" style="height: 38px;">
-  <button id="toggleBtn">Show/Hide URL Inputs (3.2)</button>
+  <button id="toggleBtn">Show/Hide URL Inputs (3.3)</button>
   <div id="inputs"></div>
 </div>
 
@@ -128,53 +128,6 @@
 
   const videoFrames = Array(20).fill(null);
   let mainIndex = null;
-
-  // Crear 25 campos de entrada
-  for (let i = 0; i < 25; i++) {
-    const wrapper = document.createElement("div");
-    wrapper.style.display = "flex";
-    wrapper.style.alignItems = "center";
-
-    const input = document.createElement("input");
-    input.placeholder = "YouTube URL " + (i + 1);
-    input.dataset.index = i;
-    input.style.flex = "1";
-    input.addEventListener("change", () => loadVideo(i));
-
-    const clearBtn = document.createElement("button");
-    clearBtn.textContent = "X";
-    clearBtn.style.marginTop = "-5px";
-    clearBtn.style.marginLeft = "0px";
-    clearBtn.style.width = "28px";
-    clearBtn.style.height = "27px";
-    clearBtn.style.cursor = "pointer";
-    clearBtn.style.backgroundColor = "#600";
-    clearBtn.style.color = "#fff";
-    clearBtn.style.border = "1px solid #444";
-    clearBtn.style.borderLeft = "none";
-
-    clearBtn.onclick = () => {
-      input.value = "";
-      loadVideo(i);   // triggers deletion logic
-    };
-
-    clearBtn.onmouseover = () => {
-      clearBtn.style.backgroundColor = "#A00";
-    };
-
-    clearBtn.onmouseout = () => {
-      clearBtn.style.backgroundColor = "#600";
-    };
-
-    wrapper.appendChild(input);
-    wrapper.appendChild(clearBtn);
-    inputsDiv.appendChild(wrapper);
-  }
-
-  // Mostrar/ocultar inputs
-  document.getElementById("toggleBtn").onclick = () => {
-    sidebarDiv.style.height = sidebarDiv.style.height === "38px" ? "100%" : "38px";
-  };
 
   // URL → embed con JS API
   function toEmbed(url) {
@@ -320,6 +273,79 @@
       }
     });
   }
+
+  window.onload = function() {
+
+    // Crear 25 campos de entrada
+    for (let i = 0; i < 25; i++) {
+      const wrapper = document.createElement("div");
+      wrapper.style.display = "flex";
+      wrapper.style.alignItems = "center";
+
+      const input = document.createElement("input");
+      input.placeholder = "YouTube URL " + (i + 1);
+      input.dataset.index = i;
+      input.style.flex = "1";
+      input.addEventListener("change", () => loadVideo(i));
+
+      const clearBtn = document.createElement("button");
+      clearBtn.textContent = "X";
+      clearBtn.style.marginTop = "-5px";
+      clearBtn.style.marginLeft = "0px";
+      clearBtn.style.width = "28px";
+      clearBtn.style.height = "27px";
+      clearBtn.style.cursor = "pointer";
+      clearBtn.style.backgroundColor = "#600";
+      clearBtn.style.color = "#fff";
+      clearBtn.style.border = "1px solid #444";
+      clearBtn.style.borderLeft = "none";
+
+      clearBtn.onclick = () => {
+        input.value = "";
+        loadVideo(i);   // triggers deletion logic
+      };
+
+      clearBtn.onmouseover = () => {
+        clearBtn.style.backgroundColor = "#A00";
+      };
+
+      clearBtn.onmouseout = () => {
+        clearBtn.style.backgroundColor = "#600";
+      };
+
+      wrapper.appendChild(input);
+      wrapper.appendChild(clearBtn);
+      inputsDiv.appendChild(wrapper);
+    }
+
+    // Mostrar/ocultar inputs
+    document.getElementById("toggleBtn").onclick = () => {
+      sidebarDiv.style.height = sidebarDiv.style.height === "38px" ? "100%" : "38px";
+    };
+
+    // === LOGGER GLOBAL PARA YOUTUBE JS API ===
+    window.addEventListener("message", (event) => {
+
+      // Filtrar mensajes que no vienen de YouTube
+      if (!event.data || typeof event.data !== "string") return;
+      if (!event.origin.includes("youtube.com")) return;
+
+      let msg;
+      try {
+        msg = JSON.parse(event.data);
+      } catch {
+        return; // No es JSON → ignorar
+      }
+
+      // Identificar el iframe que envió el mensaje
+      const sourceIframe = [...document.querySelectorAll("iframe")].find(f => f.contentWindow === event.source);
+      const index = sourceIframe ? sourceIframe.dataset.index || "desconocido" : "iframe no encontrado";
+
+      console.log("%c[YouTube EVENT] iframe index: " + index, "color: #0af; font-weight: bold;");
+      console.log(msg);
+    });
+
+  };
 </script>
 
 </body>

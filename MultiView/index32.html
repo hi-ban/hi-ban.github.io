@@ -274,9 +274,7 @@
         // Mute (solo YouTube)
         try {
           console.log("Trying to Mute video. Index:" + index);
-          //iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', "*");
           iframe.contentWindow.postMessage('{"event":"command","func":"mute","args":""}', "*");
-          //iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', "*");
         } catch (e) {}
 
       } else if (index === mainIndex) {
@@ -305,7 +303,9 @@
           if (index === mainIndex) {
             try {
               console.log("Trying to Unmute video with 1s delay. Index:" + index);
+              //iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', "*");
               iframe.contentWindow.postMessage('{"event":"command","func":"unMute","args":""}', "*");
+              //iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', "*");
             } catch (e) {}
           }
         }, 1000);
@@ -326,13 +326,47 @@
         // Mute (solo YouTube)
         try {
           console.log("Trying to Mute video. Index:" + index);
-          //iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', "*");
           iframe.contentWindow.postMessage('{"event":"command","func":"mute","args":""}', "*");
-          //iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', "*");
         } catch (e) {}
 
         sidebarY += 160;
       }
+    });
+  }
+
+  function copyAllURLs() {
+    let inputUrl = "";
+    let urlsCopy = "";
+
+    for (let i = 1; i < 26; i++) {
+      inputUrl = inputsDiv.querySelector(`input[data-index="${i}"]`).value.trim();
+      if (inputUrl != "") {
+        urlsCopy += (inputUrl + "\n")
+      }
+    }
+
+    console.log(urlsCopy);
+    navigator.clipboard.writeText(urlsCopy);
+  }
+
+  function pasteURLs() {
+    navigator.clipboard.readText().then(text => {
+      const lines = text.split(/\r?\n/); // separa por líneas
+
+      for (let i = 0; i < lines.length; i++) {
+        for (let j = 1; j < 26; j++) {
+          let currInput = inputsDiv.querySelector(`input[data-index="${j}"]`);
+          if (currInput.value == "") {
+            currInput.value = lines[i].trim();
+            loadVideo(j);
+            break;
+          }
+        }
+      }
+
+      console.log("URLs pasted from clipboard");
+    }).catch(err => {
+      console.error("Error reading from clipboard:", err);
     });
   }
 
@@ -389,7 +423,43 @@
       inputsDiv.appendChild(wrapper);
     }
 
-    // Mostrar/ocultar inputs
+    // Add copy URLs button
+    const copyBtn = document.createElement("button");
+    copyBtn.textContent = "Copy URLs";
+    copyBtn.style.marginTop = "5px";
+    copyBtn.style.marginRight = "10px";
+    copyBtn.style.width = "125px";
+    copyBtn.style.height = "27px";
+    copyBtn.style.border = "none";
+    copyBtn.style.cursor = "pointer";
+    copyBtn.style.backgroundColor = "#444";
+    copyBtn.style.color = "#fff";
+
+    copyBtn.onclick = () => {
+      copyAllURLs(); // copy all URLs to clipboard
+    };
+
+    inputsDiv.appendChild(copyBtn);
+
+    // Add paste URLs button
+    const pasteBtn = document.createElement("button");
+    pasteBtn.textContent = "Paste URLs";
+    pasteBtn.style.marginTop = "5px";
+    pasteBtn.style.marginRight = "0px";
+    pasteBtn.style.width = "125px";
+    pasteBtn.style.height = "27px";
+    pasteBtn.style.border = "none";
+    pasteBtn.style.cursor = "pointer";
+    pasteBtn.style.backgroundColor = "#444";
+    pasteBtn.style.color = "#fff";
+
+    pasteBtn.onclick = () => {
+      pasteURLs(); // copy all URLs to clipboard
+    };
+
+    inputsDiv.appendChild(pasteBtn);
+
+    // Show/hide inputs
     document.getElementById("toggleBtn").onclick = () => {
       sidebarDiv.style.height = sidebarDiv.style.height === "38px" ? "100%" : "38px";
     };

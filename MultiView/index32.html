@@ -237,7 +237,7 @@
       frameObj = videoFrames[index];
     }
 
-    frameObj.iframe.src = toEmbed(url);
+    frameObj.iframe.src = toEmbed(url) + "&controls=0";
 
     renderLayout();
   }
@@ -439,6 +439,14 @@
       copyAllURLs(); // copy all URLs to clipboard
     };
 
+    copyBtn.onmouseover = () => {
+      copyBtn.style.backgroundColor = "#666";
+    };
+
+    copyBtn.onmouseout = () => {
+      copyBtn.style.backgroundColor = "#444";
+    };
+
     inputsDiv.appendChild(copyBtn);
 
     // Add paste URLs button
@@ -457,6 +465,14 @@
       pasteURLs(); // copy all URLs to clipboard
     };
 
+    pasteBtn.onmouseover = () => {
+      pasteBtn.style.backgroundColor = "#666";
+    };
+
+    pasteBtn.onmouseout = () => {
+      pasteBtn.style.backgroundColor = "#444";
+    };
+
     inputsDiv.appendChild(pasteBtn);
 
     // Show/hide inputs
@@ -465,30 +481,8 @@
     };
 
     loadDummyVideo(0); // Load a dummy video to prevent the mute bug
-
-    // === LOGGER GLOBAL PARA YOUTUBE JS API ===
-    window.addEventListener("message", (event) => {
-
-      // Filtrar mensajes que no vienen de YouTube
-      if (!event.data || typeof event.data !== "string") return;
-      if (!event.origin.includes("youtube")) return;
-
-      let msg;
-      try {
-        msg = JSON.parse(event.data);
-      } catch {
-        return; // No es JSON → ignorar
-      }
-
-      // Identificar el iframe que envió el mensaje
-      const sourceIframe = [...document.querySelectorAll("iframe")].find(f => f.contentWindow === event.source);
-      const index = sourceIframe ? sourceIframe.dataset.index || "desconocido" : "iframe no encontrado";
-
-      console.log("%c[YouTube EVENT] iframe index: " + index, "color: #0af; font-weight: bold;");
-      console.log(msg);
-    });
-
   };
+  
 </script>
 
 </body>

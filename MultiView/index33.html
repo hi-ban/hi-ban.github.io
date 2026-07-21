@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>YouTube Multi‑Viewer</title>
+
+<style>
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #111;
+    color: #eee;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  #sidebarBg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 260px;
+    height: 100%;
+    background: #1a1a1a;
+    padding: 10px;
+    overflow-y: auto;
+    border-right: 2px solid #333;
+    z-index: 0;
+  }
+
+  #sidebar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 260px;
+    height: 38px;
+    background: #1a1a1a;
+    padding: 10px;
+    overflow: hidden;
+    border-right: 2px solid #333;
+    z-index: 100;
+  }
+
+  #toggleBtn {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    background: #444;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+  }
+
+  #toggleBtn:hover {
+    background-color: #666;
+  }
+
+  #inputs {
+    display: block;
+    margin-bottom: 10px;
+  }
+
+  #inputs input {
+    width: 248px;
+    margin-bottom: 5px;
+    padding: 5px;
+    background: #222;
+    color: #eee;
+    border: 1px solid #444;
+  }
+
+  #videoLayer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow-y: scroll;
+    scrollbar-width: none;
+    overflow-x: visible;
+    z-index: 0; /* vídeos debajo del sidebar */
+  }
+
+  .videoFrame { /* Vídeos laterales */
+    position: absolute;
+    border: none;
+    z-index: 200;
+  }
+
+  .mainVideo { /* Vídeo principal */
+    position: fixed;
+    border: none;
+    z-index: 300;
+  }
+
+  .thumbOverlay {
+    position: absolute;
+    cursor: pointer;
+    background: transparent;
+    z-index: 400;
+  }
+
+  .mainOverlay {
+    position: absolute;
+    background: transparent;
+    z-index: 400; /* debajo del vídeo principal */
+    pointer-events: none; /* no bloquea controles */
+  }
+
+  .indexLabel {
+    position: absolute;
+    top: 2px;
+    left: 4px;
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    padding: 2px 6px;
+    font-size: 14px;
+    border-radius: 4px;
+    pointer-events: none; /* no bloquea clics */
+    z-index: 999;
+  }
+</style>
+</head>
+
+<body>
+
+<div id="sidebarBg"></div>
+
+<div id="sidebar" style="height: 38px;">
+  <button id="toggleBtn">Show/Hide URL Inputs (3.3)</button>
+  <div id="inputs"></div>
+</div>
+
+<div id="videoLayer"></div>
+
+<script>
+  const inputsDiv = document.getElementById("inputs");
+  const sidebarDiv = document.getElementById("sidebar");
+  const videoLayer = document.getElementById("videoLayer");
+
+  const videoFrames = Array(26).fill(null);
+  let mainIndex = null;
+  let sideOrder = [];
+
+  // URL → embed con JS API
+  function toEmbed(url) {
+    try {
+      const u = new URL(url);
+      let id = null;
+
+      // watch?v=ID
+      if (u.searchParams.get("v")) {
+        id = u.searchParams.get("v");
+        return `https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1&mute=1&origin=${location.origin}`;
+      }
+
+      // youtu.be/ID
+      if (u.hostname === "youtu.be") {
+        id = u.pathname.slice(1);
+        return `https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1&mute=1&origin=${location.origin}`;
+      }
+
+      // youtube.com/live/ID
+      if (u.pathname.startsWith("/live/")) {
+        id = u.pathname.split("/live/")[1].split("/")[0];
+        return `https://www.youtube.com/embed/${id}?autoplay=1&enablejsapi=1&mute=1&origin=${location.origin}`;
+      }
+
+      return "";
+    } catch {
+      return "";
+    }
+  }
+
+  // Cargar vídeo (solo una vez por iframe)
+  function loadVideo(index) {
+    const url = inputsDiv.querySelector(`input[data-index="${index}"]`).value.trim();
+
+    // If URL is empty → remove video
+    if (!url) {
+      const frameObj = videoFrames[index];
+      if (frameObj) {
+        frameObj.iframe.remove();
+        frameObj.overlay.remove();
+        videoFrames[index] = null;
+      }
+
+      sideOrder = sideOrder.filter(i => i !== index);
+
+      // If the removed video was the main video → auto-select next available
+      if (mainIndex === index) {
+        mainIndex = null;
+
+        // Find the next available video
+        for (let i = 1; i < videoFrames.length; i++) {
+          if (videoFrames[i] !== null) {
+            mainIndex = i;
+            break;
+          }
+        }
+      }
+
+      renderLayout();
+      return;
+    }
+
+    let frameObj = videoFrames[index];
+
+    if (!frameObj) {
+      const iframe = document.createElement("iframe");
+      iframe.allow = "autoplay; encrypted-media";
+      iframe.className = "videoFrame";
+
+      const overlay = document.createElement("div");
+      overlay.className = "thumbOverlay";
+      overlay.onclick = () => setMain(index);
+      overlay.draggable = true;
+      overlay.ondragstart = (e) => {
+        e.dataTransfer.setData("text/plain", index);
+      };
+      overlay.ondragover = (e) => {
+        e.preventDefault();
+      };
+      overlay.ondrop = (e) => {
+        const draggedIndex = parseInt(e.dataTransfer.getData("text/plain"));
+        const targetIndex = index;
+        reorderSideVideos(draggedIndex, targetIndex);
+      };
+
+      // Add index number label
+      const label = document.createElement("div");
+      label.className = "indexLabel";
+      label.textContent = index;   // 0–25
+      overlay.appendChild(label);
+
+      videoLayer.appendChild(iframe);
+      videoLayer.appendChild(overlay);
+
+      videoFrames[index] = { iframe, overlay, label };
+      frameObj = videoFrames[index];
+
+      if (!sideOrder.includes(index)) {
+        sideOrder.push(index);
+      }
+    }
+
+    frameObj.iframe.src = toEmbed(url);
+
+    if (mainIndex === null) {
+      mainIndex = index;
+    }
+
+    renderLayout();
+  }
+
+  // Load dummy video (not visible or audible, a dirty workaround to prevent the mute bug)
+  function loadDummyVideo(index) {
+    const url = inputsDiv.querySelector(`input[data-index="${index}"]`).value.trim();
+
+    let frameObj = videoFrames[index];
+
+    if (!frameObj) {
+      const iframe = document.createElement("iframe");
+      iframe.allow = "autoplay; encrypted-media";
+      iframe.className = "videoFrame";
+
+      const overlay = document.createElement("div");
+      overlay.className = "thumbOverlay";
+
+      videoLayer.appendChild(iframe);
+      videoLayer.appendChild(overlay);
+
+      videoFrames[index] = { iframe, overlay };
+      frameObj = videoFrames[index];
+    }
+
+    frameObj.iframe.src = toEmbed(url) + "&controls=0&loop=1&playlist=dQw4w9WgXcQ";
+
+    renderLayout();
+  }
+
+  function setMain(index) {
+    mainIndex = index;
+    renderLayout();
+  }
+
+  // Renderizar posiciones sin recargar vídeos
+  function renderLayout() {
+    let sidebarY = 60;
+
+    // 1. Render MAIN video (solo uno)
+    if (mainIndex !== null && videoFrames[mainIndex]) {
+      const frameObj = videoFrames[mainIndex];
+      const { iframe, overlay, label } = frameObj;
+
+      iframe.className = "mainVideo";
+      iframe.style.left = "282px";
+      iframe.style.top = "0px";
+      iframe.style.width = "calc(100vw - 282px)";
+      iframe.style.height = "100vh";
+
+      overlay.className = "mainOverlay";
+      overlay.style.left = "282px";
+      overlay.style.top = "0px";
+      overlay.style.width = "32px";
+      overlay.style.height = "32px";
+
+      label.style.display = "block";
+
+      // Unmute main
+      try {
+        iframe.contentWindow.postMessage('{"event":"command","func":"unMute","args":""}', "*");
+      } catch (e) {}
+
+      setTimeout(() => {
+        try {
+          iframe.contentWindow.postMessage('{"event":"command","func":"unMute","args":""}', "*");
+        } catch (e) {}
+      }, 1000);
+    }
+
+    // 2. Render SIDE videos in sideOrder
+    sideOrder.forEach(index => {
+      if (index === mainIndex || index === 0) return; // skip main + dummy
+
+      const frameObj = videoFrames[index];
+      if (!frameObj) return;
+
+      const { iframe, overlay, label } = frameObj;
+
+      iframe.className = "videoFrame";
+      iframe.style.left = "10px";
+      iframe.style.top = sidebarY + "px";
+      iframe.style.width = "260px";
+      iframe.style.height = "150px";
+
+      overlay.className = "thumbOverlay";
+      overlay.style.left = "10px";
+      overlay.style.top = sidebarY + "px";
+      overlay.style.width = "260px";
+      overlay.style.height = "150px";
+
+      label.style.display = "block";
+
+      // Mute side videos
+      try {
+        iframe.contentWindow.postMessage('{"event":"command","func":"mute","args":""}', "*");
+      } catch (e) {}
+
+      sidebarY += 160;
+    });
+
+    // 3. Render dummy video (index 0)
+    const dummy = videoFrames[0];
+    if (dummy) {
+      const { iframe, overlay, label } = dummy;
+
+      iframe.className = "videoFrame";
+      iframe.style.left = "calc(50vw + 10px)";
+      iframe.style.top = "calc(50vh - 75px)";
+      iframe.style.width = "260px";
+      iframe.style.height = "150px";
+
+      overlay.className = "thumbOverlay";
+      overlay.style.left = "calc(50vw + 10px)";
+      overlay.style.top = "calc(50vh - 75px)";
+      overlay.style.width = "260px";
+      overlay.style.height = "150px";
+
+      try {
+        iframe.contentWindow.postMessage('{"event":"command","func":"mute","args":""}', "*");
+      } catch (e) {}
+    }
+  }
+
+  function reorderSideVideos(dragged, target) {
+    const oldPos = sideOrder.indexOf(dragged);
+    const newPos = sideOrder.indexOf(target);
+
+    if (oldPos === -1 || newPos === -1) return;
+
+    // Remove dragged
+    sideOrder.splice(oldPos, 1);
+
+    // Insert at new position
+    sideOrder.splice(newPos, 0, dragged);
+
+    renderLayout();
+  }
+
+  function copyAllURLs() {
+    let inputUrl = "";
+    let urlsCopy = "";
+
+    for (let i = 1; i < 26; i++) {
+      inputUrl = inputsDiv.querySelector(`input[data-index="${i}"]`).value.trim();
+      if (inputUrl != "") {
+        urlsCopy += (inputUrl + "\n")
+      }
+    }
+
+    console.log(urlsCopy);
+    navigator.clipboard.writeText(urlsCopy);
+  }
+
+  function pasteURLs() {
+    navigator.clipboard.readText().then(text => {
+      const lines = text.split(/\r?\n/); // separa por líneas
+
+      for (let i = 0; i < lines.length; i++) {
+        for (let j = 1; j < 26; j++) {
+          let currInput = inputsDiv.querySelector(`input[data-index="${j}"]`);
+          if (currInput.value == "") {
+            currInput.value = lines[i].trim();
+            loadVideo(j);
+            break;
+          }
+        }
+      }
+
+      console.log("URLs pasted from clipboard");
+    }).catch(err => {
+      console.error("Error reading from clipboard:", err);
+    });
+  }
+
+  window.onload = function() {
+
+    // Create 26 input fields, the first one is hidden and populated with a fixed URL of a dummy video
+    for (let i = 0; i < 26; i++) {
+      const wrapper = document.createElement("div");
+      if (i == 0) {
+        wrapper.style.display = "none";
+      } else {
+        wrapper.style.display = "flex";
+      }
+      wrapper.style.alignItems = "center";
+
+      const input = document.createElement("input");
+      input.placeholder = "YouTube URL " + (i);
+      input.dataset.index = i;
+      input.style.flex = "1";
+
+      if (i == 0) {
+        input.value = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"; //Dummy video to load
+      } else {
+        input.addEventListener("change", () => loadVideo(i));
+      }
+
+      const clearBtn = document.createElement("button");
+      clearBtn.textContent = "X";
+      clearBtn.style.marginTop = "-5px";
+      clearBtn.style.marginLeft = "0px";
+      clearBtn.style.width = "28px";
+      clearBtn.style.height = "27px";
+      clearBtn.style.cursor = "pointer";
+      clearBtn.style.backgroundColor = "#600";
+      clearBtn.style.color = "#fff";
+      clearBtn.style.border = "1px solid #444";
+      clearBtn.style.borderLeft = "none";
+
+      clearBtn.onclick = () => {
+        input.value = "";
+        loadVideo(i);   // triggers deletion logic
+      };
+
+      clearBtn.onmouseover = () => {
+        clearBtn.style.backgroundColor = "#A00";
+      };
+
+      clearBtn.onmouseout = () => {
+        clearBtn.style.backgroundColor = "#600";
+      };
+
+      wrapper.appendChild(input);
+      wrapper.appendChild(clearBtn);
+      inputsDiv.appendChild(wrapper);
+    }
+
+    // Add copy URLs button
+    const copyBtn = document.createElement("button");
+    copyBtn.textContent = "Copy URLs";
+    copyBtn.style.marginTop = "5px";
+    copyBtn.style.marginRight = "10px";
+    copyBtn.style.width = "125px";
+    copyBtn.style.height = "27px";
+    copyBtn.style.border = "none";
+    copyBtn.style.cursor = "pointer";
+    copyBtn.style.backgroundColor = "#444";
+    copyBtn.style.color = "#fff";
+
+    copyBtn.onclick = () => {
+      copyAllURLs(); // copy all URLs to clipboard
+    };
+
+    copyBtn.onmouseover = () => {
+      copyBtn.style.backgroundColor = "#666";
+    };
+
+    copyBtn.onmouseout = () => {
+      copyBtn.style.backgroundColor = "#444";
+    };
+
+    inputsDiv.appendChild(copyBtn);
+
+    // Add paste URLs button
+    const pasteBtn = document.createElement("button");
+    pasteBtn.textContent = "Paste URLs";
+    pasteBtn.style.marginTop = "5px";
+    pasteBtn.style.marginRight = "0px";
+    pasteBtn.style.width = "125px";
+    pasteBtn.style.height = "27px";
+    pasteBtn.style.border = "none";
+    pasteBtn.style.cursor = "pointer";
+    pasteBtn.style.backgroundColor = "#444";
+    pasteBtn.style.color = "#fff";
+
+    pasteBtn.onclick = () => {
+      pasteURLs(); // copy all URLs to clipboard
+    };
+
+    pasteBtn.onmouseover = () => {
+      pasteBtn.style.backgroundColor = "#666";
+    };
+
+    pasteBtn.onmouseout = () => {
+      pasteBtn.style.backgroundColor = "#444";
+    };
+
+    inputsDiv.appendChild(pasteBtn);
+
+    // Show/hide inputs
+    document.getElementById("toggleBtn").onclick = () => {
+      sidebarDiv.style.height = sidebarDiv.style.height === "38px" ? "100%" : "38px";
+    };
+
+    loadDummyVideo(0); // Load a dummy video to prevent the mute bug
+  };
+  
+</script>
+
+</body>
+</html>

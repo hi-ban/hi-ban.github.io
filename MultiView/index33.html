@@ -142,6 +142,8 @@
   const videoFrames = Array(26).fill(null);
   let mainIndex = null;
   let sideOrder = [];
+  let isDragging = false;
+  let autoScrollInterval = null;
 
   // URL → embed con JS API
   function toEmbed(url) {
@@ -217,12 +219,49 @@
       overlay.onclick = () => setMain(index);
       overlay.draggable = true;
       overlay.ondragstart = (e) => {
+        isDragging = true;
         e.dataTransfer.setData("text/plain", index);
+
+        // Create a visible drag image
+        // Create ghost image OFFSCREEN
+        const ghost = document.createElement("div");
+        ghost.style.position = "absolute";
+        ghost.style.left = "-9999px";   // fuera de pantalla
+        ghost.style.top = "-9999px";    // fuera de pantalla
+        ghost.style.width = "260px";
+        ghost.style.height = "150px";
+        ghost.style.background = "#888";   // igual que el lateral
+        ghost.style.opacity = "0.005";
+        ghost.style.border = "0px solid #fff";
+        ghost.style.boxSizing = "border-box";
+
+        // Número idéntico al overlay lateral
+        const num = document.createElement("div");
+        num.textContent = index;
+        num.style.position = "absolute";
+        num.style.top = "2px";
+        num.style.left = "4px";
+        num.style.background = "rgba(0,0,0,0.6)";
+        num.style.color = "#fff";
+        num.style.padding = "2px 6px";
+        num.style.fontSize = "14px";
+        num.style.borderRadius = "4px";
+        num.style.pointerEvents = "none";
+
+        ghost.appendChild(num);
+        document.body.appendChild(ghost);
+
+        // Use it as the drag ghost image
+        e.dataTransfer.setDragImage(ghost, 130, 75);
+
+        // Remove it after a tick
+        setTimeout(() => ghost.remove(), 0);
       };
       overlay.ondragover = (e) => {
         e.preventDefault();
       };
       overlay.ondrop = (e) => {
+        isDragging = false;
         const draggedIndex = parseInt(e.dataTransfer.getData("text/plain"));
         const targetIndex = index;
         reorderSideVideos(draggedIndex, targetIndex);
@@ -534,6 +573,41 @@
     document.getElementById("toggleBtn").onclick = () => {
       sidebarDiv.style.height = sidebarDiv.style.height === "38px" ? "100%" : "38px";
     };
+
+    // Autoscroll while dragging
+    document.addEventListener("dragover", (e) => {
+      if (!isDragging) return;
+
+      const rect = videoLayer.getBoundingClientRect();
+      const y = e.clientY;
+
+      const topZone = rect.top + 140;      // zona superior
+      const bottomZone = rect.bottom - 80; // zona inferior
+
+      clearInterval(autoScrollInterval);
+
+      if (y < topZone) {
+        // scroll up
+        autoScrollInterval = setInterval(() => {
+          videoLayer.scrollTop -= 10;
+        }, 16); // ~60fps
+      } else if (y > bottomZone) {
+        // scroll down
+        autoScrollInterval = setInterval(() => {
+          videoLayer.scrollTop += 10;
+        }, 16);
+      }
+    });
+
+    document.addEventListener("drop", () => {
+      isDragging = false;
+      clearInterval(autoScrollInterval);
+    });
+
+    document.addEventListener("dragend", () => {
+      isDragging = false;
+      clearInterval(autoScrollInterval);
+    });
 
     loadDummyVideo(0); // Load a dummy video to prevent the mute bug
   };
